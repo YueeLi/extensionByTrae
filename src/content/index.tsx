@@ -9,7 +9,8 @@ import {
     Tooltip,
     Snackbar,
     Alert,
-    Typography
+    Typography,
+    CircularProgress
 } from '@mui/material';
 import TranslateIcon from '@mui/icons-material/Translate';
 import SummarizeIcon from '@mui/icons-material/Summarize';
@@ -52,12 +53,18 @@ interface ResultPanelProps {
 const ResultPanel: React.FC<ResultPanelProps> = ({ result, position, onClose }) => {
     if (!result) return null;
 
+    // 计算视口高度和结果面板的位置
+    const viewportHeight = window.innerHeight;
+    const panelHeight = 300; // 预估结果面板高度
+    const spaceBelow = viewportHeight - position.y - 45;
+    const showBelow = spaceBelow >= panelHeight;
+
     return (
         <Box
             sx={{
                 position: 'fixed',
                 left: position.x,
-                top: position.y + 45,
+                top: showBelow ? position.y + 45 : position.y - panelHeight - 45,
                 maxWidth: '600px',
                 width: 'auto',
                 minWidth: '320px',
@@ -66,7 +73,7 @@ const ResultPanel: React.FC<ResultPanelProps> = ({ result, position, onClose }) 
                 boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
                 p: 3,
                 zIndex: 2147483646,
-                animation: 'slideInDown 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                animation: showBelow ? 'slideInDown 0.3s cubic-bezier(0.4, 0, 0.2, 1)' : 'slideInUp 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 border: '1px solid rgba(26, 127, 233, 0.1)',
                 backdropFilter: 'blur(12px)',
                 transform: 'scale(1)',
@@ -113,7 +120,7 @@ const ResultPanel: React.FC<ResultPanelProps> = ({ result, position, onClose }) 
 const MAX_TEXT_LENGTH = 5000; // 设置最大文本长度限制
 
 const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) => {
-    const [loading, setLoading] = React.useState(false);
+    const [loadingStates, setLoadingStates] = React.useState<Record<string, boolean>>({});
     const [error, setError] = React.useState<string>('');
     const [result, setResult] = React.useState<{
         type: string;
@@ -124,7 +131,7 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
     // 组件卸载时清理状态
     React.useEffect(() => {
         const cleanup = () => {
-            setLoading(false);
+            setLoadingStates({});
             setError('');
         };
         return cleanup;
@@ -152,7 +159,7 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
             return;
         }
 
-        setLoading(true);
+        setLoadingStates(prev => ({ ...prev, [type]: true }));
 
         try {
             if (!chrome.runtime) {
@@ -199,9 +206,57 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
             const errorMessage = error instanceof Error ? error.message : '未知错误';
             setError(`${type}操作失败: ${errorMessage}`);
         } finally {
-            setLoading(false);
+            setLoadingStates(prev => ({ ...prev, [type]: false }));
         }
     };
+
+    const renderActionButton = (type: string, icon: React.ReactNode, label: string) => (
+        <Box
+            sx={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '2px'
+            }}
+        >
+            <IconButton
+                onClick={() => handleAction(type)}
+                disabled={loadingStates[type]}
+                sx={{
+                    width: 32,
+                    height: 32,
+                    padding: '4px',
+                    minWidth: '32px',
+                    position: 'relative'
+                }}
+            >
+                {loadingStates[type] ? (
+                    <CircularProgress
+                        size={20}
+                        sx={{
+                            color: '#1A7FE9',
+                            position: 'absolute',
+                            top: '50%',
+                            left: '50%',
+                            marginTop: '-10px',
+                            marginLeft: '-10px'
+                        }}
+                    />
+                ) : icon}
+            </IconButton>
+            <Typography
+                variant="caption"
+                sx={{
+                    fontSize: '10px',
+                    color: loadingStates[type] ? '#CCCCCC' : '#666666',
+                    transition: 'all 0.3s ease',
+                    opacity: loadingStates[type] ? 0.6 : 1
+                }}
+            >
+                {label}
+            </Typography>
+        </Box>
+    );
 
     return (
         <ThemeProvider theme={theme}>
@@ -263,128 +318,10 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
                     }
                 }}
             >
-                <Box
-                    sx={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '2px'
-                    }}
-                >
-                    <IconButton
-                        onClick={() => handleAction('translate')}
-                        disabled={loading}
-                        sx={{
-                            width: 32,
-                            height: 32,
-                            padding: '4px',
-                            minWidth: '32px'
-                        }}
-                    >
-                        <TranslateIcon />
-                    </IconButton>
-                    <Typography
-                        variant="caption"
-                        sx={{
-                            fontSize: '10px',
-                            color: loading ? '#CCCCCC' : '#666666',
-                            transition: 'all 0.3s ease',
-                            opacity: loading ? 0.6 : 1
-                        }}
-                    >
-                        翻译
-                    </Typography>
-                </Box>
-                <Box
-                    sx={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '2px'
-                    }}
-                >
-                    <IconButton
-                        onClick={() => handleAction('summarize')}
-                        disabled={loading}
-                        sx={{
-                            width: 32,
-                            height: 32,
-                            padding: '4px',
-                            minWidth: '32px'
-                        }}
-                    >
-                        <SummarizeIcon />
-                    </IconButton>
-                    <Typography
-                        variant="caption"
-                        sx={{
-                            fontSize: '10px',
-                            color: loading ? '#CCCCCC' : '#666666'
-                        }}
-                    >
-                        总结
-                    </Typography>
-                </Box>
-                <Box
-                    sx={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '2px'
-                    }}
-                >
-                    <IconButton
-                        onClick={() => handleAction('analyze')}
-                        disabled={loading}
-                        sx={{
-                            width: 32,
-                            height: 32,
-                            padding: '4px',
-                            minWidth: '32px'
-                        }}
-                    >
-                        <AnalyticsIcon />
-                    </IconButton>
-                    <Typography
-                        variant="caption"
-                        sx={{
-                            fontSize: '10px',
-                            color: loading ? '#CCCCCC' : '#666666'
-                        }}
-                    >
-                        分析
-                    </Typography>
-                </Box>
-                <Box
-                    sx={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '2px'
-                    }}
-                >
-                    <IconButton
-                        onClick={() => handleAction('explain')}
-                        disabled={loading}
-                        sx={{
-                            width: 32,
-                            height: 32,
-                            padding: '4px',
-                            minWidth: '32px'
-                        }}
-                    >
-                        <ExplainIcon />
-                    </IconButton>
-                    <Typography
-                        variant="caption"
-                        sx={{
-                            fontSize: '10px',
-                            color: loading ? '#CCCCCC' : '#666666'
-                        }}
-                    >
-                        解释
-                    </Typography>
-                </Box>
+                {renderActionButton('translate', <TranslateIcon />, '翻译')}
+                {renderActionButton('summarize', <SummarizeIcon />, '总结')}
+                {renderActionButton('analyze', <AnalyticsIcon />, '分析')}
+                {renderActionButton('explain', <ExplainIcon />, '解释')}
             </Box>
         </ThemeProvider>
     );

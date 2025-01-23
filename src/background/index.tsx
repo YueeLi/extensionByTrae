@@ -310,3 +310,7 @@ async function handleAIRequest(message: MessageRequest, sender: chrome.runtime.M
         sendResponse({ error: error instanceof Error ? error.message : '处理请求失败' });
     }
 }
+// 配置侧边栏行为，使点击扩展图标时打开侧边栏
+chrome.sidePanel
+    .setPanelBehavior({ openPanelOnActionClick: true })
+    .catch((error) => console.error(error));
