@@ -21,7 +21,16 @@ module.exports = {
         }
     },
     optimization: {
-        minimize: false
+        minimize: false,
+        splitChunks: {
+            cacheGroups: {
+                vendor: {
+                    test: /[\\]node_modules[\\]/,
+                    name: 'vendors',
+                    chunks: 'all'
+                }
+            }
+        }
     },
     module: {
         rules: [

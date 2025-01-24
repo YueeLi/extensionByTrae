@@ -28,7 +28,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
                 endpoint: result.endpoint || '',
                 deploymentName: result.deploymentName || '',
                 apiVersion: result.apiVersion || '2024-02-15-preview',
-                model: result.model || 'gpt-4o'
+                model: result.model || 'gpt-4'
             });
         });
     }, []);
@@ -44,7 +44,10 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
             }, 3000);
         } catch (error) {
             setSaveStatus('error');
-            setTimeout(() => setSaveStatus(null), 3000);
+            setTimeout(() => {
+                setSaveStatus(null);
+                onHomeClick?.();
+            }, 3000);
         }
     };
 
@@ -83,9 +86,9 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
                 />
                 <TextField
                     label="Model"
-                    value={settings.model || 'gpt-4o'}
+                    value={settings.model || 'gpt-4'}
                     onChange={(e) => setSettings({ ...settings, model: e.target.value })}
-                    placeholder="gpt-4o"
+                    placeholder="gpt-4"
                     fullWidth
                 />
                 <Button

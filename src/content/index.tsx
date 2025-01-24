@@ -12,6 +12,10 @@ import {
     Typography,
     CircularProgress
 } from '@mui/material';
+import ReactMarkdown from 'react-markdown';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import remarkGfm from 'remark-gfm';
 import TranslateIcon from '@mui/icons-material/Translate';
 import SummarizeIcon from '@mui/icons-material/Summarize';
 import AnalyticsIcon from '@mui/icons-material/Analytics';
@@ -109,9 +113,50 @@ const ResultPanel: React.FC<ResultPanelProps> = ({ result, position, onClose }) 
             <Typography variant="body1" sx={{ mb: 2, color: '#666666', fontSize: '14px' }}>
                 原文：{result.text}
             </Typography>
-            <Typography variant="body1" sx={{ color: '#1A1A1A', fontSize: '15px', lineHeight: 1.6 }}>
+            <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                    code({ node, inline, className, children, ...props }) {
+                        const match = /language-(\w+)/.exec(className || '');
+                        return !inline && match ? (
+                            <SyntaxHighlighter
+                                style={vscDarkPlus}
+                                language={match[1]}
+                                PreTag="div"
+                                {...props}
+                            >
+                                {String(children).replace(/\n$/, '')}
+                            </SyntaxHighlighter>
+                        ) : (
+                            <code className={className} {...props}>
+                                {children}
+                            </code>
+                        );
+                    },
+                    p: ({ children }) => <Typography variant="body1" sx={{ mb: 1 }}>{children}</Typography>,
+                    h1: ({ children }) => <Typography variant="h4" sx={{ mb: 2, mt: 2 }}>{children}</Typography>,
+                    h2: ({ children }) => <Typography variant="h5" sx={{ mb: 1.5, mt: 1.5 }}>{children}</Typography>,
+                    h3: ({ children }) => <Typography variant="h6" sx={{ mb: 1, mt: 1 }}>{children}</Typography>,
+                    ul: ({ children }) => <Box component="ul" sx={{ pl: 2, mb: 1 }}>{children}</Box>,
+                    ol: ({ children }) => <Box component="ol" sx={{ pl: 2, mb: 1 }}>{children}</Box>,
+                    li: ({ children }) => <Box component="li" sx={{ mb: 0.5 }}>{children}</Box>,
+                    blockquote: ({ children }) => (
+                        <Box
+                            sx={{
+                                borderLeft: '4px solid #1A7FE9',
+                                pl: 2,
+                                py: 1,
+                                my: 1,
+                                bgcolor: 'rgba(26, 127, 233, 0.04)'
+                            }}
+                        >
+                            {children}
+                        </Box>
+                    )
+                }}
+            >
                 {result.content}
-            </Typography>
+            </ReactMarkdown>
         </Box>
     );
 };
