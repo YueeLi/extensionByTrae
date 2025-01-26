@@ -31,7 +31,7 @@ const Header: React.FC<HeaderProps> = ({ onSettingsClick, onChatClick, onHomeCli
                 }}
             >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <SmartToyIcon sx={{ color: '#1A7FE9', fontSize: 24 }} />
+                    <SmartToyIcon sx={{ color: '#1A7FE9', fontSize: 24 }} aria-hidden="false" aria-label="AiBot Logo" />
                     <Typography
                         variant="subtitle1"
                         sx={{

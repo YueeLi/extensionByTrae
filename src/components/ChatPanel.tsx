@@ -4,13 +4,20 @@ import { Alert, Snackbar } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
+import MicIcon from '@mui/icons-material/Mic';
+import html2canvas from 'html2canvas';
 
 import { Message } from '../types';
+import TemplateDialog from './TemplateDialog';
 
 const ChatPanel: React.FC = () => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
     const [attachment, setAttachment] = useState<{
         type: 'image' | 'text' | 'pdf';
         content: string;
@@ -42,6 +49,43 @@ const ChatPanel: React.FC = () => {
         chrome.storage.local.remove(['chatHistory'], () => {
             setMessages([]);
         });
+    };
+
+    const handleOpenTemplates = () => {
+        setIsTemplateDialogOpen(true);
+    };
+
+    const handleCloseTemplates = () => {
+        setIsTemplateDialogOpen(false);
+    };
+
+    const handleSelectTemplate = (content: string) => {
+        setInputValue(content);
+    };
+
+    const handleExportChat = () => {
+        // 将对话记录转换为文本格式
+        const chatText = messages.map(message => {
+            const timestamp = new Date(message.timestamp).toLocaleString('zh-CN');
+            const role = message.isUser ? '用户' : 'AI助手';
+            const content = message.content.map(item => item.text).join('\n');
+            return `[${timestamp}] ${role}:\n${content}\n`;
+        }).join('\n');
+
+        // 创建Blob对象
+        const blob = new Blob([chatText], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+
+        // 创建下载链接并触发下载
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `对话记录_${new Date().toLocaleDateString()}.txt`;
+        document.body.appendChild(link);
+        link.click();
+
+        // 清理
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
     };
 
     useEffect(() => {
@@ -225,7 +269,7 @@ const ChatPanel: React.FC = () => {
             maxWidth: '1200px',
             margin: '0 auto',
             bgcolor: '#FFFFFF',
-            boxShadow: '0 0 10px rgba(0, 0, 0, 0.1)'
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
         }}>
             {isLoading && (
                 <Box sx={{
@@ -241,44 +285,6 @@ const ChatPanel: React.FC = () => {
                     <CircularProgress />
                 </Box>
             )}
-            <Box sx={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                p: '12px 20px',
-                borderBottom: '1px solid #E5E5E5',
-                bgcolor: '#FFFFFF'
-            }}>
-                <IconButton
-                    onClick={() => window.history.back()}
-                    sx={{
-                        color: '#666666',
-                        '&:hover': {
-                            color: '#1A7FE9',
-                            bgcolor: 'rgba(26, 127, 233, 0.04)'
-                        }
-                    }}
-                >
-                    <ArrowBackIcon />
-                </IconButton>
-                <Button
-                    variant="outlined"
-                    size="small"
-                    onClick={clearChatHistory}
-                    sx={{
-                        mr: 1,
-                        borderColor: '#E5E5E5',
-                        color: '#666666',
-                        '&:hover': {
-                            borderColor: '#1A7FE9',
-                            color: '#1A7FE9',
-                            bgcolor: 'rgba(26, 127, 233, 0.04)'
-                        }
-                    }}
-                >
-                    清除历史记录
-                </Button>
-            </Box>
             <Snackbar
                 open={!!error}
                 autoHideDuration={6000}
@@ -296,21 +302,23 @@ const ChatPanel: React.FC = () => {
                 bgcolor: '#FFFFFF',
                 display: 'flex',
                 flexDirection: 'column',
+                gap: '16px',
                 '& .MuiListItem-root': {
-                    padding: '8px 0',
-                    marginBottom: '8px'
+                    padding: '4px 0',
+                    transition: 'all 0.3s ease'
                 },
                 '&::-webkit-scrollbar': {
                     width: '6px'
                 },
                 '&::-webkit-scrollbar-track': {
-                    background: '#F1F1F1'
+                    background: '#F5F5F5',
+                    borderRadius: '3px'
                 },
                 '&::-webkit-scrollbar-thumb': {
-                    background: '#BDBDBD',
+                    background: '#E0E0E0',
                     borderRadius: '3px',
                     '&:hover': {
-                        background: '#A1A1A1'
+                        background: '#BDBDBD'
                     }
                 }
             }}>
@@ -406,13 +414,101 @@ const ChatPanel: React.FC = () => {
                 </Box>
             </List>
             <Box sx={{
-                p: 2,
-                bgcolor: 'background.paper',
-                borderTop: 1,
-                borderColor: 'divider',
+                p: 0.8,
+                bgcolor: '#FFFFFF',
+                borderTop: '1px solid #E5E5E5',
                 boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.05)'
             }}>
-                <Box sx={{ display: 'flex', gap: 1 }}>
+                <Box sx={{
+                    display: 'flex',
+                    gap: 0.25,
+                    mb: 1,
+                    justifyContent: 'space-between',
+                    borderBottom: '1px solid #E5E5E5',
+                    pb: 0.5
+                }}>
+                    <Box sx={{ display: 'flex', gap: 0.25 }}>
+                        <Button
+                            variant="text"
+                            size="small"
+                            startIcon={<FileDownloadIcon sx={{ fontSize: 20 }} />}
+                            onClick={handleExportChat}
+                            sx={{
+                                minWidth: 'auto',
+                                padding: '4px 10px',
+                                color: '#666666',
+                                fontSize: '12px',
+                                fontWeight: 400,
+                                '&:hover': {
+                                    color: '#1A7FE9',
+                                    bgcolor: 'rgba(26, 127, 233, 0.04)'
+                                }
+                            }}
+                        >
+                            导出对话
+                        </Button>
+                        <Button
+                            variant="text"
+                            size="small"
+                            startIcon={<AutoAwesomeIcon sx={{ fontSize: 20 }} />}
+                            onClick={handleOpenTemplates}
+                            sx={{
+                                minWidth: 'auto',
+                                padding: '4px 10px',
+                                color: '#666666',
+                                fontSize: '12px',
+                                fontWeight: 400,
+                                '&:hover': {
+                                    color: '#1A7FE9',
+                                    bgcolor: 'rgba(26, 127, 233, 0.04)'
+                                }
+                            }}
+                        >
+                            提示词模板
+                        </Button>
+                        <Button
+                            variant="text"
+                            size="small"
+                            startIcon={<MicIcon sx={{ fontSize: 20 }} />}
+                            onClick={() => { }}
+                            sx={{
+                                minWidth: 'auto',
+                                padding: '4px 10px',
+                                color: '#666666',
+                                fontSize: '12px',
+                                fontWeight: 400,
+                                '&:hover': {
+                                    color: '#1A7FE9',
+                                    bgcolor: 'rgba(26, 127, 233, 0.04)'
+                                }
+                            }}
+                        >
+                            语音模式
+                        </Button>
+                    </Box>
+                    <Box>
+                        <Button
+                            variant="text"
+                            size="small"
+                            startIcon={<DeleteSweepIcon sx={{ fontSize: 20 }} />}
+                            onClick={clearChatHistory}
+                            sx={{
+                                minWidth: 'auto',
+                                padding: '4px 10px',
+                                color: '#666666',
+                                fontSize: '12px',
+                                fontWeight: 400,
+                                '&:hover': {
+                                    color: '#1A7FE9',
+                                    bgcolor: 'rgba(26, 127, 233, 0.04)'
+                                }
+                            }}
+                        >
+                            清空对话
+                        </Button>
+                    </Box>
+                </Box>
+                <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'flex-end', position: 'relative' }}>
                     <input
                         type="file"
                         ref={fileInputRef}
@@ -420,19 +516,6 @@ const ChatPanel: React.FC = () => {
                         accept="image/*,.pdf,.txt,.doc,.docx"
                         style={{ display: 'none' }}
                     />
-                    <IconButton
-                        color="primary"
-                        onClick={() => fileInputRef.current?.click()}
-                        sx={{
-                            alignSelf: 'flex-end',
-                            color: '#1A7FE9',
-                            '&:hover': {
-                                bgcolor: 'rgba(26, 127, 233, 0.04)'
-                            }
-                        }}
-                    >
-                        <AttachFileIcon />
-                    </IconButton>
                     <TextField
                         fullWidth
                         variant="outlined"
@@ -445,13 +528,11 @@ const ChatPanel: React.FC = () => {
                                 handleSendMessage();
                             }
                         }}
-                        multiline
-                        maxRows={4}
-                        size="small"
                         sx={{
+                            flex: 1,
                             '& .MuiOutlinedInput-root': {
-                                backgroundColor: '#F7F7F8',
-                                borderRadius: '12px',
+                                borderRadius: '8px',
+                                bgcolor: '#F8F9FA',
                                 '& fieldset': {
                                     borderColor: '#E5E5E5'
                                 },
@@ -465,24 +546,47 @@ const ChatPanel: React.FC = () => {
                         }}
                     />
                     <IconButton
-                        color="primary"
-                        onClick={handleSendMessage}
-                        disabled={!inputValue.trim()}
+                        onClick={() => fileInputRef.current?.click()}
                         sx={{
-                            alignSelf: 'flex-end',
+                            color: '#666666',
+                            padding: '8px',
+                            width: '36px',
+                            height: '36px',
+                            minWidth: '36px',
+                            '&:hover': {
+                                color: '#1A7FE9',
+                                bgcolor: 'rgba(26, 127, 233, 0.04)'
+                            }
+                        }}
+                    >
+                        <AttachFileIcon sx={{ fontSize: 20 }} />
+                    </IconButton>
+                    <IconButton
+                        onClick={handleSendMessage}
+                        disabled={isSending}
+                        sx={{
                             color: '#1A7FE9',
+                            padding: '8px',
+                            width: '36px',
+                            height: '36px',
+                            minWidth: '36px',
                             '&:hover': {
                                 bgcolor: 'rgba(26, 127, 233, 0.04)'
                             },
                             '&.Mui-disabled': {
-                                color: '#E5E5E5'
+                                color: 'rgba(26, 127, 233, 0.3)'
                             }
                         }}
                     >
-                        <SendIcon />
+                        <SendIcon sx={{ fontSize: 20 }} />
                     </IconButton>
                 </Box>
             </Box>
+            <TemplateDialog
+                open={isTemplateDialogOpen}
+                onClose={handleCloseTemplates}
+                onSelectTemplate={handleSelectTemplate}
+            />
         </Box>
     );
 };
