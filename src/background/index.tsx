@@ -1,43 +1,21 @@
-import { Settings, Message } from '../types';
-
-interface FileContent {
-    type: 'image_url' | 'file';
-    image_url?: {
-        url: string;
-        detail: string;
-    };
-    file?: {
-        url: string;
-        detail: string;
-    };
-}
+import { Settings, Message, FileContent, StreamChunkResponse, ChatRequest, ModelConfig, ModelRequestConfig, MessageRequest, MessageResponse } from '../types';
 
 async function getSettings(): Promise<Settings> {
-    const result = await chrome.storage.sync.get(['apiKey', 'endpoint', 'deploymentName', 'apiVersion', 'model']);
-    if (!result.apiKey || !result.endpoint || !result.deploymentName) {
-        throw new Error('请先完成Azure OpenAI设置');
+    const result = await chrome.storage.sync.get(['models', 'apiKey', 'endpoint']);
+    if (!result.models?.length) {
+        throw new Error('请先在设置页面添加模型配置');
+    }
+    if (!result.apiKey) {
+        throw new Error('请先在设置页面配置API密钥');
+    }
+    if (!result.endpoint) {
+        throw new Error('请先在设置页面配置API端点');
     }
     return {
+        models: result.models,
         apiKey: result.apiKey,
-        endpoint: result.endpoint,
-        deploymentName: result.deploymentName,
-        apiVersion: result.apiVersion || '2024-02-15-preview',
-        model: result.model || 'gpt-4'
+        endpoint: result.endpoint
     };
-}
-
-interface AzureOpenAIResponse {
-    choices: {
-        delta?: {
-            content?: string;
-        };
-        text?: string;
-    }[];
-}
-
-interface StreamChunkResponse {
-    content: string;
-    done: boolean;
 }
 
 async function processStreamChunk(chunk: string): Promise<StreamChunkResponse> {
@@ -55,46 +33,167 @@ async function processStreamChunk(chunk: string): Promise<StreamChunkResponse> {
     }
 }
 
-async function callAzureOpenAI(info: object): Promise<string> {
-    if (!info || Object.keys(info).length === 0) {
-        throw new Error('输入内容不能为空或undefined');
+const MODEL_CONFIGS: Record<string, ModelRequestConfig> = {
+    'gpt-4o': {
+        buildUrl: (model) => `${model.endpoint}/openai/deployments/${model.deploymentName}/chat/completions?api-version=${model.apiVersion}`,
+        buildHeaders: (model) => ({
+            'Content-Type': 'application/json',
+            'api-key': model.apiKey,
+            ...model.requestConfig?.headers
+        }),
+        buildBody: (messages, model) => ({
+            messages,
+            model: model.model,
+            max_completion_tokens: 4096,
+            temperature: 0.7,
+            top_p: 0.95,
+            frequency_penalty: 0,
+            presence_penalty: 0,
+            stop: null,
+            ...model.requestConfig?.bodyTemplate
+        })
+    },
+    'o1-mini': {
+        buildUrl: (model) => `${model.endpoint}/openai/deployments/${model.deploymentName}/chat/completions?api-version=${model.apiVersion}`,
+        buildHeaders: (model) => ({
+            'Content-Type': 'application/json',
+            'api-key': model.apiKey,
+            ...model.requestConfig?.headers
+        }),
+        buildBody: (messages, model) => ({
+            messages,
+            model: model.model,
+            max_completion_tokens: 4096,
+            ...model.requestConfig?.bodyTemplate
+        })
+    },
+    'deepseek': {
+        buildUrl: (model) => `${model.endpoint}/v1/chat/completions`,
+        buildHeaders: (model) => ({
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${model.apiKey}`,
+            ...model.requestConfig?.headers
+        }),
+        buildBody: (messages, model) => ({
+            messages,
+            model: model.model,
+            max_tokens: 4096,
+            ...model.requestConfig?.bodyTemplate
+        })
+    },
+    'llama3': {
+        buildUrl: (model) => `${model.endpoint}/v1/chat/completions`,
+        buildHeaders: (model) => ({
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${model.apiKey}`,
+            ...model.requestConfig?.headers
+        }),
+        buildBody: (messages, model) => ({
+            messages,
+            model: model.model,
+            max_tokens: 4096,
+            temperature: 0.7,
+            ...model.requestConfig?.bodyTemplate
+        })
+    },
+    'claude': {
+        buildUrl: (model) => `${model.endpoint}/v1/chat/completions`,
+        buildHeaders: (model) => ({
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${model.apiKey}`,
+            'anthropic-version': '2023-06-01',
+            ...model.requestConfig?.headers
+        }),
+        buildBody: (messages, model) => ({
+            messages,
+            model: model.model,
+            max_tokens: 4096,
+            temperature: 0.7,
+            ...model.requestConfig?.bodyTemplate
+        })
+    },
+    'qwen2': {
+        buildUrl: (model) => `${model.endpoint}/v1/chat/completions`,
+        buildHeaders: (model) => ({
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${model.apiKey}`,
+            ...model.requestConfig?.headers
+        }),
+        buildBody: (messages, model) => ({
+            messages,
+            model: model.model,
+            max_tokens: 4096,
+            temperature: 0.7,
+            ...model.requestConfig?.bodyTemplate
+        })
+    }
+};
+
+async function callAzureOpenAI(info: ChatRequest): Promise<string> {
+    console.log('callAzureAPI:', info);
+
+    if (!info?.content?.length && !info?.text?.trim()) {
+        throw new Error('输入内容不能为空');
     }
 
     const settings = await getSettings();
+    const { models } = settings;
+    const defaultModelId = (await chrome.storage.sync.get(['defaultModelId'])).defaultModelId;
 
-    if (!settings.apiKey || !settings.endpoint || !settings.deploymentName) {
-        throw new Error('请先完成Azure OpenAI设置');
+    // 优先使用指定的模型ID，其次使用默认模型ID，最后使用第一个模型
+    const selectedModel = info.modelId
+        ? models.find(m => m.id === info.modelId)
+        : defaultModelId
+            ? models.find(m => m.id === defaultModelId)
+            : models[0];
+
+    if (!selectedModel) {
+        throw new Error('未找到指定的模型配置');
     }
 
     const messages = [];
-    if (messages.length === 0) {
-        messages.push(createSystemMessage());
-    }
-    messages.push(info);
+    messages.push({
+        role: 'user',
+        content: info.content || [{
+            type: 'text',
+            text: info.text
+        }],
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+        isUser: true
+    });
 
     try {
-        const response = await fetch(`${settings.endpoint}/openai/deployments/${settings.deploymentName}/chat/completions?api-version=${settings.apiVersion}`, {
+        // 获取模型配置
+        const modelConfig = MODEL_CONFIGS[selectedModel.model];
+        if (!modelConfig) {
+            throw new Error(`不支持的模型类型: ${selectedModel.model}`);
+        }
+
+        // 构建请求URL和请求头
+        const url = modelConfig.buildUrl(selectedModel);
+        const headers = modelConfig.buildHeaders(selectedModel);
+
+        // 构建请求体
+        const requestBody = {
+            ...modelConfig.buildBody(messages, selectedModel),
+            stream: info.useStream ?? false
+        };
+
+        const response = await fetch(url, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'api-key': settings.apiKey
-            },
-            body: JSON.stringify({
-                messages,
-                model: settings.model,
-                max_tokens: 4096,
-                temperature: 0.7,
-                top_p: 0.95,
-                frequency_penalty: 0,
-                presence_penalty: 0,
-                stop: null,
-                stream: true
-            })
+            headers,
+            body: JSON.stringify(requestBody)
         });
 
         if (!response.ok) {
             const errorData = await response.json().catch(() => ({}));
-            throw new Error(`Azure OpenAI API调用失败: ${response.status} ${errorData.error?.message || response.statusText}`);
+            throw new Error(`API调用失败: ${response.status} ${errorData.error?.message || response.statusText}`);
+        }
+
+        if (!info.useStream) {
+            const result = await response.json();
+            return result.choices[0]?.message?.content || '';
         }
 
         const reader = response.body?.getReader();
@@ -125,7 +224,7 @@ async function callAzureOpenAI(info: object): Promise<string> {
 
         return fullText;
     } catch (error) {
-        console.error('Azure OpenAI API调用出错:', error);
+        console.error('API调用出错:', error);
         throw error;
     }
 }
@@ -212,20 +311,6 @@ function createAssistantMessage(text: string): Message {
     return createMessage('assistant', text);
 }
 
-
-interface MessageRequest {
-    type: 'chat' | 'translate' | 'summarize' | 'analyze' | 'explain';
-    text: string;
-    files?: File;
-    fileType?: string;
-    targetLang?: string;
-}
-
-interface MessageResponse {
-    content?: string;
-    error?: string;
-}
-
 // 监听来自content script的消息
 chrome.runtime.onMessage.addListener((message: MessageRequest, sender, sendResponse) => {
     console.log('Received message:', message);
@@ -265,17 +350,23 @@ chrome.runtime.onMessage.addListener((message: MessageRequest, sender, sendRespo
 });
 
 // 处理Azure OpenAI调用和历史记录更新的通用函数
-async function handleAzureOpenAIRequest(userMessage: Message): Promise<string> {
-    const response = await callAzureOpenAI(userMessage);
+async function handleAzureOpenAIRequest(userMessage: Message, modelId?: string): Promise<string> {
+    const chatRequest: ChatRequest = {
+        text: userMessage.content.find(c => c.type === 'text')?.text || '',
+        content: userMessage.content,
+        modelId
+    };
+
+    const response = await callAzureOpenAI(chatRequest);
     const assistantMessage = createAssistantMessage(response);
     await updateHistory(userMessage, assistantMessage);
     return response;
 }
 
 // 处理聊天请求
-async function handleChatRequest(text: string, files: File | null): Promise<string> {
+async function handleChatRequest(text: string, files: File | null, modelId?: string): Promise<string> {
     const userMessage = createUserMessage(text, files);
-    return handleAzureOpenAIRequest(userMessage);
+    return handleAzureOpenAIRequest(userMessage, modelId);
 }
 
 // 处理翻译请求

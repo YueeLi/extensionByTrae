@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Box, Paper, TextField, IconButton, Typography, List, ListItem, Button, CircularProgress } from '@mui/material';
+import { Box, Paper, TextField, IconButton, Typography, List, ListItem, Button, CircularProgress, MenuItem, Select } from '@mui/material';
 import { Alert, Snackbar } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
@@ -12,6 +12,7 @@ import html2canvas from 'html2canvas';
 
 import { Message } from '../types';
 import TemplateDialog from './TemplateDialog';
+import MarkdownRenderer from './MarkdownRenderer';
 
 const ChatPanel: React.FC = () => {
     const [messages, setMessages] = useState<Message[]>([]);
@@ -190,9 +191,8 @@ const ChatPanel: React.FC = () => {
             if (!inputValue.trim()) {
                 if (attachment) {
                     setError('请输入文字描述后再发送文件');
-                    setIsLoading(false);
-                    setIsSending(false);
-                    return;
+                } else {
+                    setError('请输入要发送的内容');
                 }
                 setIsLoading(false);
                 setIsSending(false);
@@ -216,28 +216,41 @@ const ChatPanel: React.FC = () => {
             setAttachment(null);
 
             try {
-                const response = await chrome.runtime.sendMessage({
-                    type: 'chat',
-                    text: inputValue + (attachment ? `\n文件内容：${attachment.content}` : ''),
-                    fileType: attachment?.type
-                });
-
-                if (response.error) {
-                    throw new Error(response.error);
-                }
-
-                const aiMessage: Message = {
-                    id: Date.now().toString(),
+                // 创建一个临时的 AI 消息用于流式展示
+                const tempAiMessage: Message = {
+                    id: (Date.now() + 1).toString(),
                     content: [{
                         type: 'text',
-                        text: typeof response === 'string' ? response : response.content || '无响应内容'
+                        text: ''
                     }],
                     isUser: false,
                     timestamp: Date.now(),
                     role: 'assistant'
                 };
 
-                setMessages(prev => [...prev, aiMessage]);
+                setMessages(prev => [...prev, tempAiMessage]);
+
+                const response = await chrome.runtime.sendMessage({
+                    type: 'chat',
+                    text: inputValue + (attachment ? `\n文件内容：${attachment.content}` : '')
+                });
+
+                if (response.error) {
+                    throw new Error(response.error);
+                }
+
+                // 更新临时消息的内容
+                setMessages(prev => prev.map(msg =>
+                    msg.id === tempAiMessage.id
+                        ? {
+                            ...msg,
+                            content: [{
+                                type: 'text',
+                                text: typeof response === 'string' ? response : response.content || '无响应内容'
+                            }]
+                        }
+                        : msg
+                ));
             } catch (error) {
                 const errorMessage: Message = {
                     id: Date.now().toString(),
@@ -259,18 +272,21 @@ const ChatPanel: React.FC = () => {
     };
 
     return (
-        <Box sx={{
-            height: '100vh',
-            display: 'flex',
-            flexDirection: 'column',
-            position: 'relative',
-            width: '100%',
-            minWidth: '320px',
-            maxWidth: '1200px',
-            margin: '0 auto',
-            bgcolor: '#FFFFFF',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
-        }}>
+        <Box
+            role="main"
+            aria-live="polite"
+            sx={{
+                height: '100vh',
+                display: 'flex',
+                flexDirection: 'column',
+                position: 'relative',
+                width: '100%',
+                minWidth: '400px',
+                maxWidth: '1200px',
+                margin: '0 auto',
+                bgcolor: '#FFFFFF',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
+            }}>
             {isLoading && (
                 <Box sx={{
                     position: 'absolute',
@@ -358,7 +374,10 @@ const ChatPanel: React.FC = () => {
                                 {message.content.map((item, index) => (
                                     <Box key={index}>
                                         {item.type === 'text' && (
-                                            <Typography variant="body1">{item.text}</Typography>
+                                            <MarkdownRenderer
+                                                content={item.text || ''}
+                                                textColor={message.isUser ? '#FFFFFF' : '#1A1A1A'}
+                                            />
                                         )}
                                         {item.type === 'image_url' && item.image_url && (
                                             <Box sx={{ mt: 1 }}>
@@ -508,7 +527,7 @@ const ChatPanel: React.FC = () => {
                         </Button>
                     </Box>
                 </Box>
-                <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'flex-end', position: 'relative' }}>
+                <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'flex-end', position: 'relative', flexWrap: 'wrap' }}>
                     <input
                         type="file"
                         ref={fileInputRef}

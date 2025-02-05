@@ -29,9 +29,10 @@ const Header: React.FC<HeaderProps> = ({ onSettingsClick, onChatClick, onHomeCli
                         bgcolor: 'rgba(26, 127, 233, 0.04)'
                     }
                 }}
+                aria-label="返回主页"
             >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <SmartToyIcon sx={{ color: '#1A7FE9', fontSize: 24 }} aria-hidden="false" aria-label="AiBot Logo" />
+                    <SmartToyIcon sx={{ color: '#1A7FE9', fontSize: 24 }} />
                     <Typography
                         variant="subtitle1"
                         sx={{

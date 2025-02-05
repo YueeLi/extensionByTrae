@@ -12,10 +12,7 @@ import {
     Typography,
     CircularProgress
 } from '@mui/material';
-import ReactMarkdown from 'react-markdown';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
-import remarkGfm from 'remark-gfm';
+import MarkdownRenderer from '@/components/MarkdownRenderer';
 import TranslateIcon from '@mui/icons-material/Translate';
 import SummarizeIcon from '@mui/icons-material/Summarize';
 import AnalyticsIcon from '@mui/icons-material/Analytics';
@@ -72,6 +69,7 @@ const ResultPanel: React.FC<ResultPanelProps> = ({ result, position, onClose }) 
                 maxWidth: '600px',
                 width: 'auto',
                 minWidth: '320px',
+                maxHeight: '80vh',
                 bgcolor: 'rgba(255, 255, 255, 0.98)',
                 borderRadius: '12px',
                 boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
@@ -82,9 +80,24 @@ const ResultPanel: React.FC<ResultPanelProps> = ({ result, position, onClose }) 
                 backdropFilter: 'blur(12px)',
                 transform: 'scale(1)',
                 transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                overflowY: 'auto',
                 '&:hover': {
                     boxShadow: '0 12px 48px rgba(26, 127, 233, 0.16)',
                     transform: 'scale(1.02)'
+                },
+                '&::-webkit-scrollbar': {
+                    width: '6px'
+                },
+                '&::-webkit-scrollbar-track': {
+                    background: '#F5F5F5',
+                    borderRadius: '3px'
+                },
+                '&::-webkit-scrollbar-thumb': {
+                    background: '#E0E0E0',
+                    borderRadius: '3px',
+                    '&:hover': {
+                        background: '#BDBDBD'
+                    }
                 }
             }}
         >
@@ -110,53 +123,11 @@ const ResultPanel: React.FC<ResultPanelProps> = ({ result, position, onClose }) 
                     </svg>
                 </IconButton>
             </Box>
-            <Typography variant="body1" sx={{ mb: 2, color: '#666666', fontSize: '14px' }}>
-                原文：{result.text}
-            </Typography>
-            <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                    code({ node, inline, className, children, ...props }) {
-                        const match = /language-(\w+)/.exec(className || '');
-                        return !inline && match ? (
-                            <SyntaxHighlighter
-                                style={vscDarkPlus}
-                                language={match[1]}
-                                PreTag="div"
-                                {...props}
-                            >
-                                {String(children).replace(/\n$/, '')}
-                            </SyntaxHighlighter>
-                        ) : (
-                            <code className={className} {...props}>
-                                {children}
-                            </code>
-                        );
-                    },
-                    p: ({ children }) => <Typography variant="body1" sx={{ mb: 1 }}>{children}</Typography>,
-                    h1: ({ children }) => <Typography variant="h4" sx={{ mb: 2, mt: 2 }}>{children}</Typography>,
-                    h2: ({ children }) => <Typography variant="h5" sx={{ mb: 1.5, mt: 1.5 }}>{children}</Typography>,
-                    h3: ({ children }) => <Typography variant="h6" sx={{ mb: 1, mt: 1 }}>{children}</Typography>,
-                    ul: ({ children }) => <Box component="ul" sx={{ pl: 2, mb: 1 }}>{children}</Box>,
-                    ol: ({ children }) => <Box component="ol" sx={{ pl: 2, mb: 1 }}>{children}</Box>,
-                    li: ({ children }) => <Box component="li" sx={{ mb: 0.5 }}>{children}</Box>,
-                    blockquote: ({ children }) => (
-                        <Box
-                            sx={{
-                                borderLeft: '4px solid #1A7FE9',
-                                pl: 2,
-                                py: 1,
-                                my: 1,
-                                bgcolor: 'rgba(26, 127, 233, 0.04)'
-                            }}
-                        >
-                            {children}
-                        </Box>
-                    )
-                }}
-            >
-                {result.content}
-            </ReactMarkdown>
+            <Box sx={{ color: '#666666', fontSize: '14px', mb: 2 }}>
+                <Typography variant="body2" sx={{ mb: 1 }}>原文：</Typography>
+                <MarkdownRenderer content={result.text} />
+            </Box>
+            <MarkdownRenderer content={result.content} />
         </Box>
     );
 };
@@ -211,10 +182,14 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
                 throw new Error('扩展未准备就绪，请刷新页面重试');
             }
 
+            // 从Chrome存储中读取默认模型配置
+            const { defaultModelId } = await chrome.storage.sync.get(['defaultModelId']);
+
             // 发送处理请求到background
             const response = await chrome.runtime.sendMessage({
                 type,
-                text: selectedText
+                text: selectedText,
+                modelId: defaultModelId
             });
 
             // 统一消息格式
@@ -232,20 +207,18 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
 
             const resultPanelRoot = ReactDOM.createRoot(resultPanelContainer);
             resultPanelRoot.render(
-                <React.StrictMode>
-                    <ResultPanel
-                        position={position}
-                        result={{
-                            type,
-                            content: message.content,
-                            text: selectedText
-                        }}
-                        onClose={() => {
-                            resultPanelRoot.unmount();
-                            document.body.removeChild(resultPanelContainer);
-                        }}
-                    />
-                </React.StrictMode>
+                <ResultPanel
+                    position={position}
+                    result={{
+                        type,
+                        content: message.content,
+                        text: selectedText
+                    }}
+                    onClose={() => {
+                        resultPanelRoot.unmount();
+                        document.body.removeChild(resultPanelContainer);
+                    }}
+                />
             );
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : '未知错误';
