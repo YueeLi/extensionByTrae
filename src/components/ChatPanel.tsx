@@ -10,7 +10,7 @@ import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import MicIcon from '@mui/icons-material/Mic';
 import html2canvas from 'html2canvas';
 
-import { Message } from '../types';
+import { Message, MessageContent } from '../types';
 import TemplateDialog from './TemplateDialog';
 import MarkdownRenderer from './MarkdownRenderer';
 
@@ -172,6 +172,7 @@ const ChatPanel: React.FC = () => {
 
     const [isSending, setIsSending] = useState(false);
     const debounceTimeout = useRef<NodeJS.Timeout>();
+    const [inputContent, setContent] = useState<MessageContent[]>([]);
 
     const handleSendMessage = async () => {
         if (isSending || isLoading) return;
@@ -199,16 +200,26 @@ const ChatPanel: React.FC = () => {
                 return;
             }
 
+            // 封装content
+            if (attachment) {
+                inputContent.push({
+                    type: attachment.type,
+                    text: attachment.content
+                });
+            }
+            inputContent.push({
+                type: 'text',
+                text: inputValue
+            })
+
+            setContent(inputContent);
+
             const userMessage: Message = {
                 id: Date.now().toString(),
-                content: [{
-                    type: 'text',
-                    text: inputValue
-                }],
+                content: inputContent,
                 isUser: true,
                 timestamp: Date.now(),
-                role: 'user',
-                attachment: attachment
+                role: 'user'
             };
 
             setMessages(prev => [...prev, userMessage]);
@@ -233,12 +244,7 @@ const ChatPanel: React.FC = () => {
                 const response = await chrome.runtime.sendMessage({
                     type: 'chat',
                     text: inputValue,
-                    content: userMessage.content,
-                    files: attachment ? {
-                        type: attachment.type,
-                        content: attachment.content,
-                        name: attachment.name
-                    } : null
+                    content: userMessage.content
                 });
 
                 if (response.error) {

@@ -36,7 +36,6 @@ export interface Message {
     isUser: boolean;
     content: MessageContent[];
     role: 'user' | 'assistant' | 'system';
-    attachment?: MessageAttachment | null;
 }
 
 export interface MessageContent {
@@ -49,12 +48,6 @@ export interface MessageContent {
 export interface FileResource {
     url: string;
     detail: string;
-}
-
-export interface MessageAttachment {
-    type: 'image' | 'text' | 'pdf';
-    content: string;
-    name: string;
 }
 
 // 请求相关接口
