@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Box, TextField, Button, Typography, Alert, List, ListItem, ListItemText, ListItemSecondaryAction, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, MenuItem, Paper } from '@mui/material';
+import { Box, Button, Typography, Alert, IconButton, Paper } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 
 import { Settings, ModelConfig } from '../types';
+import ModelDialog from './ModelDialog';
 
 // 设置面板组件：管理Azure OpenAI的API配置
 interface SettingsPanelProps {
@@ -16,15 +17,21 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
     const [settings, setSettings] = useState<Settings>({
         models: [{
             id: '1',
-            name: 'GPT-4',
+            name: 'gpt-4o',
             deploymentName: '',
             apiVersion: '2024-02-15-preview',
-            model: 'gpt-4',
+            model: 'gpt-4o',
             apiKey: '',
-            endpoint: ''
+            endpoint: '',
+            apiFormat: 'azure',
+            apiPath: '',
+            requestConfig: {
+                headers: {},
+                params: {},
+                bodyTemplate: {}
+            }
         }],
-        apiKey: '',  // 添加缺失的apiKey属性
-        endpoint: '' // 添加缺失的endpoint属性
+        defaultModelId: '1'
     });
     // 保存状态反馈
     const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(null);
@@ -39,7 +46,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
             name: '',
             deploymentName: '',
             apiVersion: '2024-02-15-preview',
-            model: 'gpt-4',
+            model: 'gpt-4o',
             apiKey: '',
             endpoint: ''
         });
@@ -79,7 +86,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
         name: '',
         deploymentName: '',
         apiVersion: '2024-02-15-preview',
-        model: 'gpt-4',
+        model: 'gpt-4o',
         apiKey: '',
         endpoint: '',
         apiFormat: 'azure',
@@ -90,151 +97,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
             bodyTemplate: {}
         }
     });
-
-    // 添加模型配置对话框
-    const ModelDialog = () => (
-        <Dialog open={isModelDialogOpen} onClose={() => setIsModelDialogOpen(false)} maxWidth="sm" fullWidth>
-            <DialogTitle sx={{ borderBottom: 1, borderColor: 'divider', pb: 2 }}>
-                <Typography variant="h6">{editingModel ? '编辑模型' : '添加模型'}</Typography>
-                <Typography variant="body2" sx={{ mt: 1, color: '#666666' }}>
-                    {editingModel ? '修改现有模型的配置参数' : '添加新的模型配置并设置相关参数'}
-                </Typography>
-            </DialogTitle>
-            <DialogContent>
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 2 }}>
-                    <Box sx={{ mb: 2 }}>
-                        <Typography variant="subtitle2" sx={{ mb: 2, color: '#1A1A1A' }}>基础配置</Typography>
-                        <Box sx={{ display: 'grid', gap: 2 }}>
-                            <TextField
-                                label="模型名称"
-                                value={modelFormData.name}
-                                onChange={(e) => setModelFormData({ ...modelFormData, name: e.target.value })}
-                                fullWidth
-                                required
-                                helperText="为您的模型配置设置一个易识别的名称"
-                            />
-                            <TextField
-                                label="Deployment Name"
-                                value={modelFormData.deploymentName}
-                                onChange={(e) => setModelFormData({ ...modelFormData, deploymentName: e.target.value })}
-                                fullWidth
-                                required
-                                helperText="Azure OpenAI 部署名称"
-                            />
-                            <TextField
-                                label="Model"
-                                value={modelFormData.model}
-                                onChange={(e) => setModelFormData({ ...modelFormData, model: e.target.value })}
-                                fullWidth
-                                required
-                                helperText="选择要使用的模型，如 gpt-4"
-                            />
-                        </Box>
-                    </Box>
-
-                    <Box sx={{ mb: 2 }}>
-                        <Typography variant="subtitle2" sx={{ mb: 2, color: '#1A1A1A' }}>API 配置</Typography>
-                        <Box sx={{ display: 'grid', gap: 2 }}>
-                            <TextField
-                                label="API Key"
-                                value={modelFormData.apiKey}
-                                onChange={(e) => setModelFormData({ ...modelFormData, apiKey: e.target.value })}
-                                type="password"
-                                fullWidth
-                                required
-                                helperText="您的 Azure OpenAI API 密钥"
-                            />
-                            <TextField
-                                label="Endpoint"
-                                value={modelFormData.endpoint}
-                                onChange={(e) => setModelFormData({ ...modelFormData, endpoint: e.target.value })}
-                                placeholder="https://your-resource.openai.azure.com"
-                                fullWidth
-                                required
-                                helperText="Azure OpenAI 服务终端点 URL"
-                            />
-                            <TextField
-                                label="API Version"
-                                value={modelFormData.apiVersion}
-                                onChange={(e) => setModelFormData({ ...modelFormData, apiVersion: e.target.value })}
-                                fullWidth
-                                required
-                                helperText="API 版本，如 2024-02-15-preview"
-                            />
-                        </Box>
-                    </Box>
-
-                    <Box>
-                        <Typography variant="subtitle2" sx={{ mb: 2, color: '#1A1A1A' }}>高级配置</Typography>
-                        <Box sx={{ display: 'grid', gap: 2 }}>
-                            <TextField
-                                label="API Format"
-                                value={modelFormData.apiFormat}
-                                onChange={(e) => setModelFormData({ ...modelFormData, apiFormat: e.target.value as 'azure' | 'openai' })}
-                                select
-                                fullWidth
-                                helperText="选择 API 调用格式"
-                            >
-                                <MenuItem value="azure">Azure</MenuItem>
-                                <MenuItem value="openai">OpenAI</MenuItem>
-                            </TextField>
-                            <TextField
-                                label="API Path"
-                                value={modelFormData.apiPath}
-                                onChange={(e) => setModelFormData({ ...modelFormData, apiPath: e.target.value })}
-                                placeholder="/v1/chat/completions"
-                                fullWidth
-                                helperText="仅在使用 OpenAI 兼容格式时需要设置"
-                            />
-                        </Box>
-                    </Box>
-                </Box>
-            </DialogContent>
-            <DialogActions sx={{ borderTop: 1, borderColor: 'divider', p: 2, gap: 1 }}>
-                <Button
-                    onClick={() => setIsModelDialogOpen(false)}
-                    color="inherit"
-                    sx={{
-                        color: '#666666',
-                        '&:hover': {
-                            bgcolor: 'rgba(0, 0, 0, 0.04)'
-                        }
-                    }}
-                >
-                    取消
-                </Button>
-                <Button
-                    onClick={handleSaveModelConfig}
-                    variant="contained"
-                    sx={{
-                        bgcolor: '#1A7FE9',
-                        '&:hover': { bgcolor: '#1565C0' }
-                    }}
-                >
-                    {editingModel ? '更新' : '添加'}
-                </Button>
-            </DialogActions>
-        </Dialog>
-    );
-
-    // 组件加载时从Chrome存储中读取设置
-    useEffect(() => {
-        chrome.storage.sync.get(['models', 'defaultModelId'], (result) => {
-            setSettings({
-                models: result.models || [{
-                    id: '1',
-                    name: 'GPT-4',
-                    deploymentName: '',
-                    apiVersion: '2024-02-15-preview',
-                    model: 'gpt-4',
-                    apiKey: '',
-                    endpoint: ''
-                }],
-                apiKey: '',  // 添加缺失的apiKey属性
-                endpoint: '' // 添加缺失的endpoint属性
-            });
-        });
-    }, []);
 
     const validateModelSettings = async (model: ModelConfig) => {
         if (!model.deploymentName.trim()) {
@@ -256,49 +118,45 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
             throw new Error(`模型 "${model.name}" 的 Endpoint 格式无效，请输入完整的 URL`);
         }
 
+        // 验证API格式相关的必填字段
+        if (model.apiFormat === 'custom' && !model.apiPath?.trim()) {
+            throw new Error(`模型 "${model.name}" 使用自定义API格式时，API路径不能为空`);
+        }
+
         // 根据不同的API格式执行不同的验证
         try {
-            if (model.apiFormat === 'openai') {
-                const response = await fetch(`${model.endpoint}/openai/deployments/${model.deploymentName}/chat/completions?api-version=${model.apiVersion}`, {
-                    method: 'POST',
-                    headers: {
-                        'api-key': model.apiKey,
-                        'Content-Type': 'application/json',
-                        ...(model.requestConfig?.headers || {})
-                    },
-                    body: JSON.stringify({
-                        messages: [{ role: 'user', content: 'This is a test message.' }],
-                        max_completion_tokens: 1,
-                        ...(model.requestConfig?.bodyTemplate || {})
-                    })
-                });
+            const url = model.apiFormat === 'azure'
+                ? `${model.endpoint}/openai/deployments/${model.deploymentName}/chat/completions?api-version=${model.apiVersion}`
+                : `${model.endpoint}${model.apiPath || '/v1/chat/completions'}`;
 
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error?.message || '未知错误');
+            const headers = model.apiFormat === 'azure'
+                ? {
+                    'api-key': model.apiKey,
+                    'Content-Type': 'application/json',
+                    ...(model.requestConfig?.headers || {})
                 }
-            } else {
-                // Azure 格式验证
-                const apiPath = model.apiPath || '/v1/chat/completions';
-                const response = await fetch(`${model.endpoint}${apiPath}`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${model.apiKey}`,
-                        'Content-Type': 'application/json',
-                        ...(model.requestConfig?.headers || {})
-                    },
-                    body: JSON.stringify({
-                        model: model.model,
-                        messages: [{ role: 'system', content: 'This is a test message.' }],
-                        max_tokens: 1,
-                        ...(model.requestConfig?.bodyTemplate || {})
-                    })
-                });
+                : {
+                    'Authorization': `Bearer ${model.apiKey}`,
+                    'Content-Type': 'application/json',
+                    ...(model.requestConfig?.headers || {})
+                };
 
-                if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error?.message || '未知错误');
-                }
+            const body = {
+                messages: [{ role: 'user', content: 'This is a test message.' }],
+                model: model.model,
+                max_completion_tokens: 1,
+                ...(model.requestConfig?.bodyTemplate || {})
+            };
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(body)
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error?.message || '未知错误');
             }
         } catch (error) {
             throw new Error(`API 连接测试失败: ${error instanceof Error ? error.message : '连接错误'}`);
@@ -340,9 +198,13 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
     const [defaultModelId, setDefaultModelId] = useState<string>('');
 
     useEffect(() => {
-        chrome.storage.sync.get(['defaultModelId'], (result) => {
+        chrome.storage.sync.get(['defaultModelId', 'models'], (result) => {
+            console.log('get settings result:', result);
             if (result.defaultModelId) {
                 setDefaultModelId(result.defaultModelId);
+            }
+            if (result.models && result.models.length > 0) {
+                setSettings(prev => ({ ...prev, models: result.models }));
             }
         });
     }, []);
@@ -515,7 +377,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
                     </Alert>
                 )}
             </Box>
-            {ModelDialog()}
+            <ModelDialog
+                open={isModelDialogOpen}
+                onClose={() => setIsModelDialogOpen(false)}
+                onSave={handleSaveModelConfig}
+                modelFormData={modelFormData}
+                setModelFormData={setModelFormData}
+                editingModel={editingModel}
+            />
         </Box>
     );
 };

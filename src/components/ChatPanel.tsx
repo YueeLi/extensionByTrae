@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Box, Paper, TextField, IconButton, Typography, List, ListItem, Button, CircularProgress, MenuItem, Select } from '@mui/material';
+import { Box, Paper, TextField, IconButton, Typography, List, ListItem, Button, CircularProgress } from '@mui/material';
 import { Alert, Snackbar } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
@@ -143,7 +143,7 @@ const ChatPanel: React.FC = () => {
             // 存储文件信息，等待用户输入文字后一起发送
             setAttachment({
                 type: fileType,
-                content,
+                content: content,
                 name: file.name
             });
 
@@ -232,7 +232,13 @@ const ChatPanel: React.FC = () => {
 
                 const response = await chrome.runtime.sendMessage({
                     type: 'chat',
-                    text: inputValue + (attachment ? `\n文件内容：${attachment.content}` : '')
+                    text: inputValue,
+                    content: userMessage.content,
+                    files: attachment ? {
+                        type: attachment.type,
+                        content: attachment.content,
+                        name: attachment.name
+                    } : null
                 });
 
                 if (response.error) {

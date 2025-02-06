@@ -1,3 +1,4 @@
+// Model相关接口
 export interface ModelConfig {
     id: string;
     name: string;
@@ -6,7 +7,7 @@ export interface ModelConfig {
     model: string;
     apiKey: string;
     endpoint: string;
-    apiFormat?: 'azure' | 'openai';
+    apiFormat?: 'azure' | 'openai' | 'custom';
     apiPath?: string;
     requestConfig?: {
         headers?: Record<string, string>;
@@ -15,74 +16,51 @@ export interface ModelConfig {
     };
 }
 
-export interface Settings {
-    apiKey: string;
-    endpoint: string;
-    models: ModelConfig[];
+export interface ModelRequestConfig {
+    buildUrl: (model: ModelConfig) => string;
+    buildHeaders: (model: ModelConfig) => Record<string, string>;
+    buildBody: (messages: Message[], model: ModelConfig) => ChatRequestBody;
 }
 
+// 设置相关接口
+export interface Settings {
+    models: ModelConfig[];
+    defaultModelId?: string;
+    defaultModel?: ModelConfig;
+}
+
+// 消息相关接口
 export interface Message {
     id: string;
     timestamp: number;
     isUser: boolean;
-    content: Array<{
-        type: 'text' | 'image_url' | 'file';
-        text?: string;
-        image_url?: {
-            url: string;
-            detail: string;
-        };
-        file?: {
-            url: string;
-            detail: string;
-        };
-    }>;
+    content: MessageContent[];
     role: 'user' | 'assistant' | 'system';
-    attachment?: {
-        type: 'image' | 'text' | 'pdf';
-        content: string;
-        name: string;
-    } | null;
+    attachment?: MessageAttachment | null;
 }
 
-
-export interface TextProcessingResponse {
-    error?: string;
-    result?: string;
+export interface MessageContent {
+    type: 'text' | 'image_url' | 'file';
+    text?: string;
+    image_url?: FileResource;
+    file?: FileResource;
 }
 
-export interface FileContent {
-    type: 'image_url' | 'file';
-    image_url?: {
-        url: string;
-        detail: string;
-    };
-    file?: {
-        url: string;
-        detail: string;
-    };
+export interface FileResource {
+    url: string;
+    detail: string;
 }
 
-export interface StreamChunkResponse {
+export interface MessageAttachment {
+    type: 'image' | 'text' | 'pdf';
     content: string;
-    done: boolean;
+    name: string;
 }
 
+// 请求相关接口
 export interface ChatRequest {
-    text: string;
     modelId?: string;
-    content?: Array<{
-        type: 'text' | 'image_url' | 'file';
-        text?: string;
-        image_url?: {
-            url: string;
-            detail: string;
-        };
-        file?: {
-            url: string;
-            detail: string;
-        };
-    }>;
+    content?: MessageContent[];
     useStream?: boolean;
 }
 
@@ -99,12 +77,6 @@ export interface ChatRequestBody {
     stream?: boolean;
 }
 
-export interface ModelRequestConfig {
-    buildUrl: (model: ModelConfig) => string;
-    buildHeaders: (model: ModelConfig) => Record<string, string>;
-    buildBody: (messages: Message[], model: ModelConfig) => ChatRequestBody;
-}
-
 export interface MessageRequest {
     type: 'chat' | 'translate' | 'summarize' | 'analyze' | 'explain';
     text: string;
@@ -113,7 +85,25 @@ export interface MessageRequest {
     targetLang?: string;
 }
 
+// 响应相关接口
 export interface MessageResponse {
     content?: string;
     error?: string;
+}
+
+export interface TextProcessingResponse {
+    error?: string;
+    result?: string;
+}
+
+export interface StreamChunkResponse {
+    content: string;
+    done: boolean;
+}
+
+// 工具类接口
+export interface FileContent {
+    type: 'image_url' | 'file';
+    image_url?: FileResource;
+    file?: FileResource;
 }

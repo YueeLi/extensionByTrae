@@ -133,7 +133,7 @@ const ResultPanel: React.FC<ResultPanelProps> = ({ result, position, onClose }) 
 };
 
 // 悬浮工具栏组件：提供文本翻译、总结和分析功能
-const MAX_TEXT_LENGTH = 5000; // 设置最大文本长度限制
+const MAX_TEXT_LENGTH = 10000; // 设置最大文本长度限制
 
 const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) => {
     const [loadingStates, setLoadingStates] = React.useState<Record<string, boolean>>({});
@@ -182,14 +182,10 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
                 throw new Error('扩展未准备就绪，请刷新页面重试');
             }
 
-            // 从Chrome存储中读取默认模型配置
-            const { defaultModelId } = await chrome.storage.sync.get(['defaultModelId']);
-
             // 发送处理请求到background
             const response = await chrome.runtime.sendMessage({
                 type,
-                text: selectedText,
-                modelId: defaultModelId
+                text: selectedText
             });
 
             // 统一消息格式
