@@ -22,8 +22,6 @@ import { MessageContent } from '../types';
 // 在文件开头添加调试日志
 console.log('Content script loaded');
 
-const [inputContent, setContent] = useState<MessageContent[]>([]);
-
 // 主题配置
 const theme = createTheme({
     palette: {
@@ -141,11 +139,7 @@ const MAX_TEXT_LENGTH = 10000; // 设置最大文本长度限制
 const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) => {
     const [loadingStates, setLoadingStates] = React.useState<Record<string, boolean>>({});
     const [error, setError] = React.useState<string>('');
-    const [result, setResult] = React.useState<{
-        type: string;
-        content: string;
-        text: string;
-    } | null>(null);
+    const [inputContent, setContent] = React.useState<MessageContent[]>([]);
 
     // 组件卸载时清理状态
     React.useEffect(() => {
@@ -362,8 +356,6 @@ container.style.zIndex = '2147483647';
 document.body.appendChild(container);
 
 let toolbarRoot: ReactDOM.Root | null = null;
-let hideTimeout: number | null = null;
-let debounceTimeout: number | null = null;
 
 // 防抖函数
 const debounce = (fn: Function, delay: number) => {
@@ -389,11 +381,24 @@ const cleanupToolbar = () => {
 const renderToolbar = (position: { x: number; y: number }) => {
     try {
         cleanupToolbar();
+        // 计算视口尺寸
+        const viewportWidth = window.innerWidth;
+        const viewportHeight = window.innerHeight;
+        // 工具栏预估尺寸
+        const toolbarWidth = 200;
+        const toolbarHeight = 100;
+
+        // 调整位置确保在视口内
+        const adjustedPosition = {
+            x: Math.min(Math.max(0, position.x), viewportWidth - toolbarWidth),
+            y: Math.min(Math.max(45, position.y), viewportHeight - toolbarHeight)
+        };
+
         toolbarRoot = ReactDOM.createRoot(container);
         toolbarRoot.render(
             <React.StrictMode>
                 <FloatingToolbar
-                    position={position}
+                    position={adjustedPosition}
                     onClose={cleanupToolbar}
                 />
             </React.StrictMode>
@@ -419,8 +424,8 @@ const handleTextSelection = debounce(() => {
     if (!rect) return;
 
     const position = {
-        x: Math.min(rect.left + window.scrollX, window.innerWidth - 200),
-        y: rect.top + window.scrollY
+        x: Math.min(rect.left, window.innerWidth - 200),
+        y: rect.top
     };
 
     renderToolbar(position);

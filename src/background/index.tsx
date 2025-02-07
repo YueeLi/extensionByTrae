@@ -122,8 +122,8 @@ class APIManager {
             buildBody: (messages, model) => ({
                 messages,
                 model: model.model,
-                max_tokens: model.max_tokens || 4096,
-                temperature: model.temperature || 0.7,
+                max_completion_tokens: model.max_completion_tokens || 4096,
+                temperature: model.temperature || 1.0, // o1-mini must be 1.0
                 stream: model.stream || false,
                 ...model.requestConfig?.bodyTemplate
             })

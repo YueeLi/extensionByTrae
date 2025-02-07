@@ -152,7 +152,15 @@ const ModelDialog: React.FC<ModelDialogProps> = ({
                                     value={modelFormData.max_tokens || ''}
                                     onChange={(e) => handleChange('max_tokens', parseInt(e.target.value))}
                                     fullWidth
-                                    helperText="生成文本的最大长度"
+                                    helperText="生成文本的最大长度(旧api)"
+                                />
+                                <TextField
+                                    label="Max Completion Tokens"
+                                    type="number"
+                                    value={modelFormData.max_completion_tokens || ''}
+                                    onChange={(e) => handleChange('max_completion_tokens', parseInt(e.target.value))}
+                                    fullWidth
+                                    helperText="生成文本的最大长度(新api)"
                                 />
                                 <TextField
                                     label="Top P"
