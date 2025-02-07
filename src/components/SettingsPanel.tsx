@@ -25,13 +25,41 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
             endpoint: '',
             apiFormat: 'azure',
             apiPath: '',
+            temperature: 0.7,
+            max_tokens: 4096,
+            top_p: 0.95,
+            frequency_penalty: 0,
+            presence_penalty: 0,
+            stream: false,
             requestConfig: {
                 headers: {},
                 params: {},
                 bodyTemplate: {}
             }
         }],
-        defaultModelId: '1'
+        defaultModelId: '1',
+        defaultModel: {
+            id: '1',
+            name: 'gpt-4o',
+            deploymentName: '',
+            apiVersion: '2024-02-15-preview',
+            model: 'gpt-4o',
+            apiKey: '',
+            endpoint: '',
+            apiFormat: 'azure',
+            apiPath: '',
+            temperature: 0.7,
+            max_tokens: 4096,
+            top_p: 0.95,
+            frequency_penalty: 0,
+            presence_penalty: 0,
+            stream: false,
+            requestConfig: {
+                headers: {},
+                params: {},
+                bodyTemplate: {}
+            }
+        }
     });
     // 保存状态反馈
     const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(null);
@@ -48,7 +76,20 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
             apiVersion: '2024-02-15-preview',
             model: 'gpt-4o',
             apiKey: '',
-            endpoint: ''
+            endpoint: '',
+            apiFormat: 'azure',
+            apiPath: '',
+            temperature: 0.7,
+            max_tokens: 4096,
+            top_p: 0.95,
+            frequency_penalty: 0,
+            presence_penalty: 0,
+            stream: false,
+            requestConfig: {
+                headers: {},
+                params: {},
+                bodyTemplate: {}
+            }
         });
         setIsModelDialogOpen(true);
     };
@@ -178,18 +219,38 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
 
     const handleSaveModel = async (model: ModelConfig) => {
         try {
+            if (!model.name?.trim()) {
+                throw new Error('模型名称不能为空');
+            }
+            if (!model.model?.trim()) {
+                throw new Error('模型标识不能为空');
+            }
             if (await handleValidateModel(model)) {
                 const updatedModels = settings.models.map(m =>
-                    m.id === model.id ? model : m
+                    m.id === model.id ? {
+                        ...model,
+                        temperature: model.temperature || 0.7,
+                        max_tokens: model.max_tokens || 4096,
+                        top_p: model.top_p || 0.95,
+                        frequency_penalty: model.frequency_penalty || 0,
+                        presence_penalty: model.presence_penalty || 0,
+                        stream: model.stream || false
+                    } : m
                 );
-                await chrome.storage.sync.set({ models: updatedModels });
-                setSettings(prev => ({ ...prev, models: updatedModels }));
-                setError(null);
-                return true;
+                try {
+                    await chrome.storage.sync.set({ models: updatedModels });
+                    setSettings(prev => ({ ...prev, models: updatedModels }));
+                    setError(null);
+                    setSaveStatus('success');
+                    return true;
+                } catch (storageError) {
+                    throw new Error('保存到浏览器存储失败，请重试');
+                }
             }
             return false;
         } catch (error) {
             setError(error instanceof Error ? error.message : '保存失败');
+            setSaveStatus('error');
             return false;
         }
     };
@@ -198,15 +259,33 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
     const [defaultModelId, setDefaultModelId] = useState<string>('');
 
     useEffect(() => {
-        chrome.storage.sync.get(['defaultModelId', 'models'], (result) => {
-            console.log('get settings result:', result);
-            if (result.defaultModelId) {
-                setDefaultModelId(result.defaultModelId);
+        const loadSettings = async () => {
+            try {
+                const result = await chrome.storage.sync.get(['defaultModelId', 'models']);
+                console.log('get settings result:', result);
+                if (result.defaultModelId) {
+                    setDefaultModelId(result.defaultModelId);
+                }
+                if (result.models && Array.isArray(result.models) && result.models.length > 0) {
+                    setSettings(prev => ({
+                        ...prev,
+                        models: result.models.map((model: ModelConfig) => ({
+                            ...model,
+                            temperature: model.temperature || 0.7,
+                            max_tokens: model.max_tokens || 4096,
+                            top_p: model.top_p || 0.95,
+                            frequency_penalty: model.frequency_penalty || 0,
+                            presence_penalty: model.presence_penalty || 0,
+                            stream: model.stream || false
+                        }))
+                    }));
+                }
+            } catch (error) {
+                setError('加载设置失败，请刷新页面重试');
+                console.error('Failed to load settings:', error);
             }
-            if (result.models && result.models.length > 0) {
-                setSettings(prev => ({ ...prev, models: result.models }));
-            }
-        });
+        };
+        loadSettings();
     }, []);
 
     const handleSetDefaultModel = async (modelId: string) => {

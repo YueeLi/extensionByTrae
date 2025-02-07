@@ -1,4 +1,4 @@
-import { Settings, Message, FileContent, StreamChunkResponse, ChatRequest, ModelRequestConfig, MessageContent, MessageRequest } from '../types';
+import { Settings, Message, StreamChunkResponse, ChatRequest, ModelRequestConfig, MessageContent, HandleRequest } from '../types';
 
 // 配置侧边栏行为，使点击扩展图标时打开侧边栏，不可删除！！！
 chrome.sidePanel
@@ -46,16 +46,21 @@ class SettingsManager {
 // 历史记录管理
 class HistoryManager {
     static async updateHistory(userMessage: Message, assistantMessage: Message) {
-        const history = await chrome.storage.local.get(['chatHistory']);
-        const chatHistory = history.chatHistory || [];
+        try {
+            const history = await chrome.storage.local.get(['chatHistory']);
+            const chatHistory = history.chatHistory || [];
 
-        chatHistory.push(userMessage, assistantMessage);
+            chatHistory.push(userMessage, assistantMessage);
 
-        if (chatHistory.length > 30) {
-            chatHistory.splice(0, chatHistory.length - 30);
+            if (chatHistory.length > 30) {
+                chatHistory.splice(0, chatHistory.length - 30);
+            }
+
+            await chrome.storage.local.set({ chatHistory });
+        } catch (error) {
+            console.error('更新聊天历史失败:', error);
+            throw new Error('更新聊天历史记录失败');
         }
-
-        await chrome.storage.local.set({ chatHistory });
     }
 
     static async clearHistory() {
@@ -65,15 +70,7 @@ class HistoryManager {
 
 // 消息工厂
 class MessageFactory {
-    static createMessage(role: 'user' | 'assistant' | 'system', text: string, fileContent?: FileContent): Message {
-        const content: any[] = [];
-        if (fileContent) {
-            content.push(fileContent);
-        }
-        content.push({
-            type: 'text',
-            text: text
-        });
+    static createMessage(role: 'user' | 'assistant' | 'system', content: MessageContent[]): Message {
         return {
             role,
             content,
@@ -83,36 +80,12 @@ class MessageFactory {
         };
     }
 
-    static createSystemMessage(): Message {
-        return this.createMessage('system', 'You are a helpful assistant.');
+    static createUserMessage(content: MessageContent[]): Message {
+        return this.createMessage('user', content);
     }
 
-    static createUserMessage(text: string, file?: File | null): Message {
-        if (!file) {
-            return this.createMessage('user', text);
-        }
-
-        const fileContent: FileContent = {
-            type: file.type === 'image' ? 'image_url' : 'file'
-        };
-
-        if (file.type === 'image') {
-            fileContent.image_url = {
-                url: URL.createObjectURL(file),
-                detail: 'low'
-            };
-        } else {
-            fileContent.file = {
-                url: URL.createObjectURL(file),
-                detail: 'low'
-            };
-        }
-
-        return this.createMessage('user', text, fileContent);
-    }
-
-    static createAssistantMessage(text: string): Message {
-        return this.createMessage('assistant', text);
+    static createAssistantMessage(content: MessageContent[]): Message {
+        return this.createMessage('assistant', content);
     }
 }
 
@@ -129,12 +102,13 @@ class APIManager {
             buildBody: (messages, model) => ({
                 messages,
                 model: model.model,
-                max_completion_tokens: 4096,
-                temperature: 0.7,
-                top_p: 0.95,
-                frequency_penalty: 0,
-                presence_penalty: 0,
-                stop: null,
+                max_tokens: model.max_tokens || 4096,
+                temperature: model.temperature || 0.7,
+                top_p: model.top_p || 0.95,
+                frequency_penalty: model.frequency_penalty || 0,
+                presence_penalty: model.presence_penalty || 0,
+                stop: model.stop || null,
+                stream: model.stream || false,
                 ...model.requestConfig?.bodyTemplate
             })
         },
@@ -148,7 +122,9 @@ class APIManager {
             buildBody: (messages, model) => ({
                 messages,
                 model: model.model,
-                max_completion_tokens: 4096,
+                max_tokens: model.max_tokens || 4096,
+                temperature: model.temperature || 0.7,
+                stream: model.stream || false,
                 ...model.requestConfig?.bodyTemplate
             })
         },
@@ -232,28 +208,16 @@ class APIManager {
     static async callAzureOpenAI(info: ChatRequest): Promise<string> {
         console.log('request LLM with ChatRequest:', info)
 
-        if (!info?.content?.length) {
+        if (!info?.messages?.length) {
             throw new Error('输入内容不能为空');
         }
 
         const settings = await SettingsManager.getSettings();
-        const { models } = settings;
-        const defaultModelId = (await chrome.storage.sync.get(['defaultModelId'])).defaultModelId;
-
-        const selectedModel = defaultModelId ? models.find(m => m.id === defaultModelId) : models[0];
+        const selectedModel = settings.defaultModel;
 
         if (!selectedModel) {
             throw new Error('未找到指定的模型配置');
         }
-
-        const messages = [];
-        messages.push({
-            role: 'user',
-            content: info.content,
-            id: crypto.randomUUID(),
-            timestamp: Date.now(),
-            isUser: true
-        });
 
         try {
             const modelConfig = this.MODEL_CONFIGS[selectedModel.model];
@@ -263,10 +227,7 @@ class APIManager {
 
             const url = modelConfig.buildUrl(selectedModel);
             const headers = modelConfig.buildHeaders(selectedModel);
-            const requestBody = {
-                ...modelConfig.buildBody(messages, selectedModel),
-                stream: info.useStream ?? false
-            };
+            const requestBody = modelConfig.buildBody(info.messages, selectedModel);
 
             console.log('request LLM with requestBody:', requestBody);
 
@@ -281,38 +242,16 @@ class APIManager {
                 throw new Error(`API调用失败: ${response.status} ${errorData.error?.message || response.statusText}`);
             }
 
-            if (!info.useStream) {
-                const result = await response.json();
-                return result.choices[0]?.message?.content || '';
+            const result = await response.json();
+            if (!result.choices || !Array.isArray(result.choices) || result.choices.length === 0) {
+                throw new Error('API响应格式无效');
             }
-
-            const reader = response.body?.getReader();
-            if (!reader) {
-                throw new Error('无法获取响应流');
+            const choice = result.choices[0];
+            if (!choice.message || typeof choice.message.content !== 'string') {
+                throw new Error('API响应内容格式无效');
             }
+            return choice.message.content;
 
-            let fullText = '';
-            while (true) {
-                const { done, value } = await reader.read();
-                if (done) break;
-
-                const chunk = new TextDecoder().decode(value);
-                const lines = chunk.split('\n').filter(line => line.trim() !== '');
-
-                for (const line of lines) {
-                    if (line.startsWith('data: ')) {
-                        const { content, done } = await this.processStreamChunk(line.slice(6));
-                        if (done) continue;
-                        fullText += content;
-                    }
-                }
-            }
-
-            if (!fullText) {
-                throw new Error('API返回的响应内容无效');
-            }
-
-            return fullText;
         } catch (error) {
             console.error('API调用出错:', error);
             throw error;
@@ -322,75 +261,99 @@ class APIManager {
 
 // 请求处理器
 class RequestHandler {
-    static async handleAzureOpenAIRequest(userMessage: Message, useStream?: boolean): Promise<string> {
+    static async handleAzureOpenAIRequest(userMessage: Message): Promise<string> {
         console.log('chatRequest with history:', userMessage);
         const chatRequest: ChatRequest = {
-            content: userMessage.content,
-            useStream: useStream
+            messages: [{
+                role: userMessage.role,
+                content: userMessage.content
+            }]
         };
-        const response = await APIManager.callAzureOpenAI(chatRequest);
-        const assistantMessage = MessageFactory.createAssistantMessage(response);
-        await HistoryManager.updateHistory(userMessage, assistantMessage);
-        return response;
+
+        let retryCount = 0;
+        const maxRetries = 3;
+
+        while (retryCount < maxRetries) {
+            try {
+                const response = await APIManager.callAzureOpenAI(chatRequest);
+
+                // 创建助手消息对象
+                const assistantMessage = MessageFactory.createAssistantMessage([{
+                    type: 'text',
+                    text: response
+                }]);
+
+                // 更新聊天历史
+                await HistoryManager.updateHistory(userMessage, assistantMessage);
+
+                return response;
+            } catch (error) {
+                retryCount++;
+                if (retryCount === maxRetries) {
+                    throw error;
+                }
+                // 指数退避重试
+                await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+            }
+        }
+
+        throw new Error('请求失败，已达到最大重试次数');
     }
 
-    static async handleChatRequest(text: string, files: File | null): Promise<string> {
-        const userMessage = MessageFactory.createUserMessage(text, files);
-        return this.handleAzureOpenAIRequest(userMessage);
-    }
+    static async handleRequest(msg: HandleRequest): Promise<string> {
+        let content = msg.content;
+        const textContent = content.find(item => item.type === 'text')?.text || '';
 
-    static async handleTranslateRequest(text: string): Promise<string> {
-        const userMessage = MessageFactory.createUserMessage(`请将以下内容翻译成中文 :\n${text}`);
-        return this.handleAzureOpenAIRequest(userMessage);
-    }
+        if (msg.type === 'translate') {
+            content = [{
+                type: 'text',
+                text: `请将以下内容翻译成中文，保持原文的语气和风格：\n\n${textContent}`
+            }];
+        }
+        if (msg.type === 'analyze') {
+            content = [{
+                type: 'text',
+                text: `请分析以下内容，包括主要观点、论据支持、逻辑结构等方面：\n\n${textContent}`
+            }];
+        }
+        if (msg.type === 'explain') {
+            content = [{
+                type: 'text',
+                text: `请详细解释以下内容，使用通俗易懂的语言，并举例说明：\n\n${textContent}`
+            }];
+        }
+        if (msg.type === 'summarize') {
+            content = [{
+                type: 'text',
+                text: `请总结以下内容的要点，突出关键信息：\n\n${textContent}`
+            }];
+        }
 
-    static async handleSummarizeRequest(text: string): Promise<string> {
-        const userMessage = MessageFactory.createUserMessage(`请总结以下内容的要点：\n${text}`);
-        return this.handleAzureOpenAIRequest(userMessage);
-    }
-
-    static async handleAnalyzeRequest(text: string): Promise<string> {
-        const userMessage = MessageFactory.createUserMessage(`请分析以下内容并提供见解：\n${text}`);
-        return this.handleAzureOpenAIRequest(userMessage);
-    }
-
-    static async handleExplainRequest(text: string): Promise<string> {
-        const userMessage = MessageFactory.createUserMessage(`请解释以下信息：\n${text}`);
+        const userMessage = MessageFactory.createUserMessage(content);
         return this.handleAzureOpenAIRequest(userMessage);
     }
 }
 
-chrome.runtime.onMessage.addListener((message: MessageRequest, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: HandleRequest, _sender, sendResponse) => {
     if (!message.type) {
         console.error('Message type not specified');
         sendResponse({ error: '消息类型未指定' });
         return false;
     }
 
-    const messageHandlers = {
-        chat: () => RequestHandler.handleChatRequest(message.text, message.files || null),
-        translate: () => RequestHandler.handleTranslateRequest(message.text),
-        summarize: () => RequestHandler.handleSummarizeRequest(message.text),
-        analyze: () => RequestHandler.handleAnalyzeRequest(message.text),
-        explain: () => RequestHandler.handleExplainRequest(message.text)
-    };
+    // 处理异步消息
+    (async () => {
+        try {
+            const response = await RequestHandler.handleRequest(message);
+            sendResponse({ content: response });
+        } catch (error) {
+            console.error('处理消息时出错:', error);
+            sendResponse({
+                error: error instanceof Error ? error.message : '处理消息时发生未知错误'
+            });
+        }
+    })();
 
-    const handler = messageHandlers[message.type];
-    if (!handler) {
-        console.error('Unsupported message type:', message.type);
-        sendResponse({ error: '不支持的消息类型' });
-        return false;
-    }
-
-    handler()
-        .then(response => {
-            console.log('Handler response:', response);
-            sendResponse(response);
-        })
-        .catch(error => {
-            console.error('Handler error:', error);
-            sendResponse({ error: error instanceof Error ? error.message : '处理请求失败' });
-        });
-
+    // 返回true表示将异步处理响应
     return true;
 });

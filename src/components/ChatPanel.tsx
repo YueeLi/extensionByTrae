@@ -8,8 +8,6 @@ import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import MicIcon from '@mui/icons-material/Mic';
-import html2canvas from 'html2canvas';
-
 import { Message, MessageContent } from '../types';
 import TemplateDialog from './TemplateDialog';
 import MarkdownRenderer from './MarkdownRenderer';
@@ -103,44 +101,40 @@ const ChatPanel: React.FC = () => {
         const file = event.target.files?.[0];
         if (!file) return;
 
-        if (file.size > 10 * 1024 * 1024) {
-            const errorMessage: Message = {
-                id: Date.now().toString(),
-                content: [{
-                    type: 'text',
-                    text: '错误：文件大小超出限制（最大10MB）'
-                }],
-                isUser: false,
-                timestamp: Date.now(),
-                role: 'system'
-            };
-            setMessages(prev => [...prev, errorMessage]);
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+            setError(`文件大小超出限制（最大${Math.floor(maxSize / 1024 / 1024)}MB）`);
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
             return;
         }
 
+        setIsLoading(true);
         try {
             let fileType: 'image' | 'text' | 'pdf';
             let content = '';
 
             if (file.type.startsWith('image/')) {
                 fileType = 'image';
-                content = await new Promise((resolve) => {
+                content = await new Promise((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onload = () => resolve(reader.result as string);
+                    reader.onerror = () => reject(new Error('文件读取失败'));
                     reader.readAsDataURL(file);
                 });
             } else if (file.type === 'application/pdf' || file.type.includes('text') || file.name.endsWith('.doc') || file.name.endsWith('.docx')) {
                 fileType = file.type === 'application/pdf' ? 'pdf' : 'text';
-                content = await new Promise((resolve) => {
+                content = await new Promise((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onload = () => resolve(reader.result as string);
+                    reader.onerror = () => reject(new Error('文件读取失败'));
                     reader.readAsText(file);
                 });
             } else {
-                throw new Error('不支持的文件格式');
+                throw new Error('不支持的文件格式，请上传图片、PDF或文本文件');
             }
 
-            // 存储文件信息，等待用户输入文字后一起发送
             setAttachment({
                 type: fileType,
                 content: content,
@@ -148,25 +142,12 @@ const ChatPanel: React.FC = () => {
             });
 
         } catch (error) {
-            const errorMessage: Message = {
-                id: Date.now().toString(),
-                content: [{
-                    type: 'text',
-                    text: `错误：${error instanceof Error ? error.message : '文件处理失败，请重试'}`
-                }],
-                isUser: false,
-                timestamp: Date.now(),
-                role: 'system'
-            };
-            setMessages(prev => [...prev, errorMessage]);
-            setError(error instanceof Error ? error.message : '未知错误');
+            setError(error instanceof Error ? error.message : '文件处理失败，请重试');
         } finally {
             setIsLoading(false);
-        }
-
-        // 清除文件输入，以便可以重新上传相同的文件
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
         }
     };
 
@@ -200,23 +181,38 @@ const ChatPanel: React.FC = () => {
                 return;
             }
 
+            // 创建新的消息内容数组，而不是修改现有的状态
+            const newContent: MessageContent[] = [];
+
             // 封装content
             if (attachment) {
-                inputContent.push({
-                    type: attachment.type,
-                    text: attachment.content
-                });
+                if (attachment.type === 'image') {
+                    newContent.push({
+                        type: 'image_url',
+                        image_url: {
+                            url: attachment.content,
+                            detail: 'low'
+                        }
+                    });
+                } else {
+                    newContent.push({
+                        type: 'file',
+                        file: {
+                            url: attachment.content,
+                            detail: 'low'
+                        }
+                    });
+                }
             }
-            inputContent.push({
+
+            newContent.push({
                 type: 'text',
                 text: inputValue
-            })
-
-            setContent(inputContent);
+            });
 
             const userMessage: Message = {
                 id: Date.now().toString(),
-                content: inputContent,
+                content: newContent,
                 isUser: true,
                 timestamp: Date.now(),
                 role: 'user'
@@ -225,6 +221,7 @@ const ChatPanel: React.FC = () => {
             setMessages(prev => [...prev, userMessage]);
             setInputValue('');
             setAttachment(null);
+            setContent([]); // 清空 inputContent
 
             try {
                 // 创建一个临时的 AI 消息用于流式展示
@@ -243,7 +240,6 @@ const ChatPanel: React.FC = () => {
 
                 const response = await chrome.runtime.sendMessage({
                     type: 'chat',
-                    text: inputValue,
                     content: userMessage.content
                 });
 
@@ -301,16 +297,24 @@ const ChatPanel: React.FC = () => {
             }}>
             {isLoading && (
                 <Box sx={{
-                    position: 'absolute',
+                    position: 'fixed',
                     top: '50%',
                     left: '50%',
                     transform: 'translate(-50%, -50%)',
                     zIndex: 1000,
-                    bgcolor: 'rgba(255, 255, 255, 0.8)',
-                    padding: 2,
-                    borderRadius: 1
+                    bgcolor: 'rgba(255, 255, 255, 0.9)',
+                    padding: 3,
+                    borderRadius: 2,
+                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: 1
                 }}>
-                    <CircularProgress />
+                    <CircularProgress size={40} />
+                    <Typography variant="body2" color="textSecondary">
+                        处理中...
+                    </Typography>
                 </Box>
             )}
             <Snackbar
@@ -364,7 +368,7 @@ const ChatPanel: React.FC = () => {
                                 elevation={0}
                                 sx={{
                                     padding: '12px 16px',
-                                    maxWidth: '70%',
+                                    maxWidth: '75%',
                                     bgcolor: message.isUser ? '#1A7FE9' : '#F0F2F5',
                                     color: message.isUser ? '#FFFFFF' : '#1A1A1A',
                                     borderRadius: message.isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
@@ -396,7 +400,13 @@ const ChatPanel: React.FC = () => {
                                                 <img
                                                     src={item.image_url.url}
                                                     alt={item.image_url.detail}
-                                                    style={{ maxWidth: '100%', maxHeight: '200px' }}
+                                                    style={{
+                                                        maxWidth: '100%',
+                                                        maxHeight: '300px',
+                                                        borderRadius: '8px',
+                                                        objectFit: 'contain'
+                                                    }}
+                                                    loading="lazy"
                                                 />
                                             </Box>
                                         )}
@@ -407,22 +417,6 @@ const ChatPanel: React.FC = () => {
                                         )}
                                     </Box>
                                 ))}
-                                {message.attachment && (
-                                    <Box sx={{ mt: 1 }}>
-                                        {message.attachment.type === 'image' && (
-                                            <img
-                                                src={message.attachment.content}
-                                                alt={message.attachment.name}
-                                                style={{ maxWidth: '100%', maxHeight: '200px' }}
-                                            />
-                                        )}
-                                        {(message.attachment.type === 'text' || message.attachment.type === 'pdf') && (
-                                            <Typography variant="caption" color="textSecondary">
-                                                附件：{message.attachment.name}
-                                            </Typography>
-                                        )}
-                                    </Box>
-                                )}
                                 <Typography
                                     variant="caption"
                                     sx={{
@@ -552,26 +546,20 @@ const ChatPanel: React.FC = () => {
                         variant="outlined"
                         placeholder="输入消息..."
                         value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        onKeyPress={(e) => {
-                            if (e.key === 'Enter' && !e.shiftKey) {
-                                e.preventDefault();
-                                handleSendMessage();
-                            }
+                        onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                            setInputValue(event.target.value);
                         }}
+                        disabled={isLoading || isSending}
                         sx={{
                             flex: 1,
                             '& .MuiOutlinedInput-root': {
                                 borderRadius: '8px',
-                                bgcolor: '#F8F9FA',
-                                '& fieldset': {
-                                    borderColor: '#E5E5E5'
+                                backgroundColor: '#F5F5F5',
+                                '&:hover': {
+                                    backgroundColor: '#EEEEEE'
                                 },
-                                '&:hover fieldset': {
-                                    borderColor: '#1A7FE9'
-                                },
-                                '&.Mui-focused fieldset': {
-                                    borderColor: '#1A7FE9'
+                                '&.Mui-focused': {
+                                    backgroundColor: '#FFFFFF'
                                 }
                             }
                         }}

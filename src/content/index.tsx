@@ -1,5 +1,5 @@
 /** @jsxImportSource react */
-import React from 'react';
+import React, { useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import {
     ThemeProvider,
@@ -17,9 +17,12 @@ import TranslateIcon from '@mui/icons-material/Translate';
 import SummarizeIcon from '@mui/icons-material/Summarize';
 import AnalyticsIcon from '@mui/icons-material/Analytics';
 import ExplainIcon from '@mui/icons-material/Help';
+import { MessageContent } from '../types';
 
 // 在文件开头添加调试日志
 console.log('Content script loaded');
+
+const [inputContent, setContent] = useState<MessageContent[]>([]);
 
 // 主题配置
 const theme = createTheme({
@@ -177,15 +180,25 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
 
         setLoadingStates(prev => ({ ...prev, [type]: true }));
 
+        inputContent.push(
+            {
+                type: 'text',
+                text: selectedText
+            }
+        )
+        setContent(inputContent)
+
         try {
             if (!chrome.runtime) {
                 throw new Error('扩展未准备就绪，请刷新页面重试');
             }
 
+            console.log('inputContent:', inputContent)
+
             // 发送处理请求到background
             const response = await chrome.runtime.sendMessage({
                 type,
-                text: selectedText
+                content: inputContent
             });
 
             // 统一消息格式
