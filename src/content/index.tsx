@@ -17,7 +17,7 @@ import TranslateIcon from '@mui/icons-material/Translate';
 import SummarizeIcon from '@mui/icons-material/Summarize';
 import AnalyticsIcon from '@mui/icons-material/Analytics';
 import ExplainIcon from '@mui/icons-material/Help';
-import { MessageContent } from '../types';
+import { MessageContent } from '../types/types';
 
 // 在文件开头添加调试日志
 console.log('Content script loaded');

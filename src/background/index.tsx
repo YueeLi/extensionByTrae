@@ -1,4 +1,4 @@
-import { Settings, Message, StreamChunkResponse, ChatRequest, ModelRequestConfig, MessageContent, HandleRequest } from '../types';
+import { Settings, Message, StreamChunkResponse, ChatRequest, ModelRequestConfig, MessageContent, HandleRequest } from '../types/types';
 
 // 配置侧边栏行为，使点击扩展图标时打开侧边栏，不可删除！！！
 chrome.sidePanel
@@ -263,12 +263,40 @@ class APIManager {
 class RequestHandler {
     static async handleAzureOpenAIRequest(userMessage: Message): Promise<string> {
         console.log('chatRequest with history:', userMessage);
+
         const chatRequest: ChatRequest = {
             messages: [{
                 role: userMessage.role,
-                content: userMessage.content
+                content: new Array<MessageContent>()
             }]
         };
+
+        // 获取历史对话记录
+        // 历史记录需要成对出现，所以从第一条开始逐个追加
+        /**
+         * messages=[
+                    {"role": "system", "content": "You are a helpful assistant."},
+                    {"role": "user", "content": "What year is this year?"},
+                    {"role": "assistant", "content": "2023"},
+                    {"role": "user", "content": " xxxx ?"}
+            ]
+            */
+        
+        const history = await chrome.storage.local.get(['chatHistory']);
+        const chatHistory = history.chatHistory || [];
+        for (const message of chatHistory) {
+            if (message.isUser) {
+                chatRequest.messages[0].content.push(...message.content);
+            } else {
+                chatRequest.messages.push({
+                    role: message.role,
+                    content: message.content
+                });
+            }
+        }
+
+
+        chatRequest.messages[0].content.push(...userMessage.content);
 
         let retryCount = 0;
         const maxRetries = 3;

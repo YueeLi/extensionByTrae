@@ -8,7 +8,7 @@ import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import MicIcon from '@mui/icons-material/Mic';
-import { Message, MessageContent } from '../types';
+import { Message, MessageContent } from '../types/types';
 import TemplateDialog from './TemplateDialog';
 import MarkdownRenderer from './MarkdownRenderer';
 

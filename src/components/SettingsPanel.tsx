@@ -4,7 +4,7 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 
-import { Settings, ModelConfig } from '../types';
+import { Settings, ModelConfig } from '../types/types';
 import ModelDialog from './ModelDialog';
 
 // 设置面板组件：管理Azure OpenAI的API配置
