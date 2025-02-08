@@ -1,8 +1,8 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { ThemeProvider, CssBaseline, Box } from '@mui/material'
+import { ThemeProvider, CssBaseline } from '@mui/material'
 import { createTheme } from '@mui/material/styles'
-import HomePage from '@/components/ToolBar'
+import HomePage from '@/components/HomePage'
 
 // 主题配置：定义应用的颜色和排版样式
 const theme = createTheme({

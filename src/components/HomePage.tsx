@@ -3,7 +3,7 @@ import { Box } from '@mui/material';
 import ChatPanel from './ChatPanel';
 import SettingsPanel from './SettingsPanel';
 import Header from './Header';
-import Welcome from './WelcomePage';
+import Welcome from './Welcome';
 
 // 侧边栏面板的主页组件
 const HomePage: React.FC = () => {
