@@ -1,4 +1,4 @@
-import { HandleRequest, Message, ChatMessage, ChatRequest } from '../types/types';
+import { HandleExtRequest, Message, LLMRequestMessage } from '../types/types';
 import { HistoryManager } from './history';
 import { MessageFactory } from './message';
 import { APIManager } from './api';
@@ -22,14 +22,12 @@ class RequestHandler {
     static async handleAzureOpenAIRequest(userMessage: Message): Promise<string> {
         console.log('chatRequest with history:', userMessage);
 
-        const chatMsg: ChatMessage = {
+        const newMsg: LLMRequestMessage = {
             role: 'user',
             content: userMessage.content
         };
 
-        const chatRequest: ChatRequest = {
-            messages: []
-        };
+        const reqMessages: LLMRequestMessage[] = [];
 
         // 获取历史对话记录
         const history = await chrome.storage.local.get(['chatHistory']);
@@ -39,11 +37,11 @@ class RequestHandler {
             const userMsg = chatHistory[i];
             const assistantMsg = chatHistory[i + 1];
             if (userMsg && assistantMsg) {
-                chatRequest.messages.push({
+                reqMessages.push({
                     role: 'user',
                     content: userMsg.content
                 });
-                chatRequest.messages.push({
+                reqMessages.push({
                     role: 'assistant',
                     content: assistantMsg.content
                 });
@@ -51,14 +49,14 @@ class RequestHandler {
         }
 
         // 添加最新的用户消息
-        chatRequest.messages.push(chatMsg);
+        reqMessages.push(newMsg);
 
         let retryCount = 0;
         const maxRetries = 3;
 
         while (retryCount < maxRetries) {
             try {
-                const response = await APIManager.callAzureOpenAI(chatRequest);
+                const response = await APIManager.callAzureOpenAI(reqMessages);
 
                 // 创建助手消息对象
                 const assistantMessage = MessageFactory.createAssistantMessage([{
@@ -83,7 +81,7 @@ class RequestHandler {
         throw new Error('请求失败，已达到最大重试次数');
     }
 
-    static async handleRequest(msg: HandleRequest): Promise<string> {
+    static async handleRequest(msg: HandleExtRequest): Promise<string> {
         let content = msg.content;
         const textContent = content.find(item => item.type === 'text')?.text || '';
 
@@ -117,7 +115,7 @@ class RequestHandler {
     }
 }
 
-chrome.runtime.onMessage.addListener((message: HandleRequest, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: HandleExtRequest, _sender, sendResponse) => {
     if (!message.type) {
         console.error('Message type not specified');
         sendResponse({ error: '消息类型未指定' });

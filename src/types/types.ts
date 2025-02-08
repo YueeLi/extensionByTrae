@@ -33,7 +33,7 @@ export interface ModelConfig {
 export interface ModelRequestConfig {
     buildUrl: (model: ModelConfig) => string;
     buildHeaders: (model: ModelConfig) => Record<string, string>;
-    buildBody: (messages: ChatMessage[], model: ModelConfig) => ChatRequestBody;  // 简化参数类型
+    buildBody: (messages: LLMRequestMessage[], model: ModelConfig) => LLMRequestBody;  // 简化参数类型
 }
 
 // 设置相关接口
@@ -73,45 +73,32 @@ export interface Message {
 }
 
 // 聊天消息接口
-export interface ChatMessage {
+export interface LLMRequestMessage {
     role: MessageRole;
     content: string | MessageContent[];
 }
 
-// 聊天请求接口
-export interface ChatRequest {
-    modelId?: string;
-    messages: ChatMessage[];
-}
-
 // 聊天请求体
-export interface ChatRequestBody {
-    messages: ChatMessage[];
+export interface LLMRequestBody {
+    messages: LLMRequestMessage[];
     model?: string;
-    temperature?: number;
-    max_tokens?: number;
-    stream?: boolean;
+    temperature?: number;  // 控制输出的随机性 (0-1)
+    max_tokens?: number;  // 生成文本的最大长度
+    max_completion_tokens?: number;  // 补全文本的最大长度
+    top_p?: number;  // 控制输出的多样性 (0-1)
+    frequency_penalty?: number;  // 控制重复词汇的惩罚程度 (-2.0-2.0)
+    presence_penalty?: number;  // 控制话题重复的惩罚程度 (-2.0-2.0)
+    stop?: string[] | null;  // 停止生成的标记
+    stream?: boolean;  // 是否启用流式响应
 }
 
-// 处理请求类型
-export type HandleRequestType = 'chat' | 'translate' | 'summarize' | 'analyze' | 'explain';
+// 插件请求类型
+export type ExtensionRequestType = 'chat' | 'translate' | 'summarize' | 'analyze' | 'explain';
 
-// 处理请求接口
-export interface HandleRequest {
-    type: HandleRequestType;
+// 插件请求内容
+export interface HandleExtRequest {
+    type: ExtensionRequestType;
     content: MessageContent[];
-}
-
-// 消息响应接口
-export interface MessageResponse {
-    content?: string;
-    error?: string;
-}
-
-// 文本处理响应接口
-export interface TextProcessingResponse {
-    error?: string;
-    result?: string;
 }
 
 // 流式响应接口

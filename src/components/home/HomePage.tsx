@@ -46,7 +46,7 @@ const HomePage: React.FC = () => {
     ];
 
     return (
-        <Box sx={{ height: '100%', display: 'flex' }}>
+        <Box sx={{ height: '100%', minWidth: '400px', display: 'flex' }}>
             <Drawer
                 variant="permanent"
                 anchor="left"

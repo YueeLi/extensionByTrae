@@ -533,7 +533,7 @@ const ChatPanel: React.FC = () => {
                         </Button>
                     </Box>
                 </Box>
-                <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'flex-end', position: 'relative', flexWrap: 'wrap' }}>
+                <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'flex-end', position: 'relative', flexWrap: 'nowrap' }}>
                     <input
                         type="file"
                         ref={fileInputRef}

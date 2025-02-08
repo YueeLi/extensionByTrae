@@ -1,4 +1,4 @@
-import { ChatRequest, ModelRequestConfig, StreamChunkResponse } from '../types/types';
+import { LLMRequestMessage, ModelRequestConfig, StreamChunkResponse } from '../types/types';
 import { SettingsManager } from './settings';
 
 export class APIManager {
@@ -35,7 +35,6 @@ export class APIManager {
                 model: model.model,
                 max_completion_tokens: model.max_completion_tokens || 4096,
                 temperature: model.temperature || 1.0,
-                stream: model.stream || false,
                 ...model.requestConfig?.bodyTemplate
             })
         },
@@ -116,10 +115,10 @@ export class APIManager {
         }
     }
 
-    static async callAzureOpenAI(info: ChatRequest): Promise<string> {
+    static async callAzureOpenAI(info: LLMRequestMessage[]): Promise<string> {
         console.log('request LLM with ChatRequest:', info)
 
-        if (!info?.messages?.length) {
+        if (!info?.length) {
             throw new Error('输入内容不能为空');
         }
 
@@ -138,7 +137,7 @@ export class APIManager {
 
             const url = modelConfig.buildUrl(selectedModel);
             const headers = modelConfig.buildHeaders(selectedModel);
-            const requestBody = modelConfig.buildBody(info.messages, selectedModel);
+            const requestBody = modelConfig.buildBody(info, selectedModel);
 
             console.log('request LLM with requestBody:', requestBody);
 
