@@ -1,4 +1,7 @@
-import { Settings, Message, StreamChunkResponse, ChatRequest, ModelRequestConfig, MessageContent, HandleRequest } from '../types/types';
+import { HandleRequest, Message, ChatMessage, ChatRequest } from '../types/types';
+import { HistoryManager } from './history';
+import { MessageFactory } from './message';
+import { APIManager } from './api';
 
 // 配置侧边栏行为，使点击扩展图标时打开侧边栏，不可删除！！！
 chrome.sidePanel
@@ -14,289 +17,41 @@ chrome.runtime.onInstalled.addListener(() => {
     HistoryManager.clearHistory();
 });
 
-// 设置管理
-class SettingsManager {
-    static async getSettings(): Promise<Settings> {
-        const result = await chrome.storage.sync.get(['models', 'defaultModelId']);
-        console.log('models settings:', result);
-        if (!result.models?.length) {
-            throw new Error('请先在设置页面添加模型配置');
-        }
-        if (!result.defaultModelId) {
-            throw new Error('请先在设置页面选择默认模型');
-        }
-        const defaultModel = result.models.find((m: { id: string }) => m.id === result.defaultModelId);
-        if (!defaultModel) {
-            throw new Error('未找到默认模型配置');
-        }
-        if (!defaultModel.apiKey) {
-            throw new Error('默认模型的API密钥未配置');
-        }
-        if (!defaultModel.endpoint) {
-            throw new Error('默认模型的API端点未配置');
-        }
-        return {
-            models: result.models,
-            defaultModelId: result.defaultModelId,
-            defaultModel: defaultModel
-        };
-    }
-}
-
-// 历史记录管理
-class HistoryManager {
-    static async updateHistory(userMessage: Message, assistantMessage: Message) {
-        try {
-            const history = await chrome.storage.local.get(['chatHistory']);
-            const chatHistory = history.chatHistory || [];
-
-            chatHistory.push(userMessage, assistantMessage);
-
-            if (chatHistory.length > 30) {
-                chatHistory.splice(0, chatHistory.length - 30);
-            }
-
-            await chrome.storage.local.set({ chatHistory });
-        } catch (error) {
-            console.error('更新聊天历史失败:', error);
-            throw new Error('更新聊天历史记录失败');
-        }
-    }
-
-    static async clearHistory() {
-        await chrome.storage.local.remove(['chatHistory']);
-    }
-}
-
-// 消息工厂
-class MessageFactory {
-    static createMessage(role: 'user' | 'assistant' | 'system', content: MessageContent[]): Message {
-        return {
-            role,
-            content,
-            id: crypto.randomUUID(),
-            timestamp: Date.now(),
-            isUser: role === 'user'
-        };
-    }
-
-    static createUserMessage(content: MessageContent[]): Message {
-        return this.createMessage('user', content);
-    }
-
-    static createAssistantMessage(content: MessageContent[]): Message {
-        return this.createMessage('assistant', content);
-    }
-}
-
-// API调用管理
-class APIManager {
-    private static readonly MODEL_CONFIGS: Record<string, ModelRequestConfig> = {
-        'gpt-4o': {
-            buildUrl: (model) => `${model.endpoint}/openai/deployments/${model.deploymentName}/chat/completions?api-version=${model.apiVersion}`,
-            buildHeaders: (model) => ({
-                'Content-Type': 'application/json',
-                'api-key': model.apiKey,
-                ...model.requestConfig?.headers
-            }),
-            buildBody: (messages, model) => ({
-                messages,
-                model: model.model,
-                max_tokens: model.max_tokens || 4096,
-                temperature: model.temperature || 0.7,
-                top_p: model.top_p || 0.95,
-                frequency_penalty: model.frequency_penalty || 0,
-                presence_penalty: model.presence_penalty || 0,
-                stop: model.stop || null,
-                stream: model.stream || false,
-                ...model.requestConfig?.bodyTemplate
-            })
-        },
-        'o1-mini': {
-            buildUrl: (model) => `${model.endpoint}/openai/deployments/${model.deploymentName}/chat/completions?api-version=${model.apiVersion}`,
-            buildHeaders: (model) => ({
-                'Content-Type': 'application/json',
-                'api-key': model.apiKey,
-                ...model.requestConfig?.headers
-            }),
-            buildBody: (messages, model) => ({
-                messages,
-                model: model.model,
-                max_completion_tokens: model.max_completion_tokens || 4096,
-                temperature: model.temperature || 1.0, // o1-mini must be 1.0
-                stream: model.stream || false,
-                ...model.requestConfig?.bodyTemplate
-            })
-        },
-        'deepseek': {
-            buildUrl: (model) => `${model.endpoint}/v1/chat/completions`,
-            buildHeaders: (model) => ({
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${model.apiKey}`,
-                ...model.requestConfig?.headers
-            }),
-            buildBody: (messages, model) => ({
-                messages,
-                model: model.model,
-                max_tokens: 4096,
-                ...model.requestConfig?.bodyTemplate
-            })
-        },
-        'llama3': {
-            buildUrl: (model) => `${model.endpoint}/v1/chat/completions`,
-            buildHeaders: (model) => ({
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${model.apiKey}`,
-                ...model.requestConfig?.headers
-            }),
-            buildBody: (messages, model) => ({
-                messages,
-                model: model.model,
-                max_tokens: 4096,
-                temperature: 0.7,
-                ...model.requestConfig?.bodyTemplate
-            })
-        },
-        'claude': {
-            buildUrl: (model) => `${model.endpoint}/v1/chat/completions`,
-            buildHeaders: (model) => ({
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${model.apiKey}`,
-                'anthropic-version': '2023-06-01',
-                ...model.requestConfig?.headers
-            }),
-            buildBody: (messages, model) => ({
-                messages,
-                model: model.model,
-                max_tokens: 4096,
-                temperature: 0.7,
-                ...model.requestConfig?.bodyTemplate
-            })
-        },
-        'qwen2': {
-            buildUrl: (model) => `${model.endpoint}/v1/chat/completions`,
-            buildHeaders: (model) => ({
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${model.apiKey}`,
-                ...model.requestConfig?.headers
-            }),
-            buildBody: (messages, model) => ({
-                messages,
-                model: model.model,
-                max_tokens: 4096,
-                temperature: 0.7,
-                ...model.requestConfig?.bodyTemplate
-            })
-        }
-    };
-
-    static async processStreamChunk(chunk: string): Promise<StreamChunkResponse> {
-        if (chunk === '[DONE]') {
-            return { content: '', done: true };
-        }
-
-        try {
-            const parsed = JSON.parse(chunk);
-            const content = parsed.choices?.[0]?.delta?.content || '';
-            return { content, done: false };
-        } catch (e) {
-            console.error('解析响应数据失败:', e);
-            return { content: '', done: false };
-        }
-    }
-
-    static async callAzureOpenAI(info: ChatRequest): Promise<string> {
-        console.log('request LLM with ChatRequest:', info)
-
-        if (!info?.messages?.length) {
-            throw new Error('输入内容不能为空');
-        }
-
-        const settings = await SettingsManager.getSettings();
-        const selectedModel = settings.defaultModel;
-
-        if (!selectedModel) {
-            throw new Error('未找到指定的模型配置');
-        }
-
-        try {
-            const modelConfig = this.MODEL_CONFIGS[selectedModel.model];
-            if (!modelConfig) {
-                throw new Error(`不支持的模型类型: ${selectedModel.model}`);
-            }
-
-            const url = modelConfig.buildUrl(selectedModel);
-            const headers = modelConfig.buildHeaders(selectedModel);
-            const requestBody = modelConfig.buildBody(info.messages, selectedModel);
-
-            console.log('request LLM with requestBody:', requestBody);
-
-            const response = await fetch(url, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(requestBody)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(`API调用失败: ${response.status} ${errorData.error?.message || response.statusText}`);
-            }
-
-            const result = await response.json();
-            if (!result.choices || !Array.isArray(result.choices) || result.choices.length === 0) {
-                throw new Error('API响应格式无效');
-            }
-            const choice = result.choices[0];
-            if (!choice.message || typeof choice.message.content !== 'string') {
-                throw new Error('API响应内容格式无效');
-            }
-            return choice.message.content;
-
-        } catch (error) {
-            console.error('API调用出错:', error);
-            throw error;
-        }
-    }
-}
-
 // 请求处理器
 class RequestHandler {
     static async handleAzureOpenAIRequest(userMessage: Message): Promise<string> {
         console.log('chatRequest with history:', userMessage);
 
+        const chatMsg: ChatMessage = {
+            role: 'user',
+            content: userMessage.content
+        };
+
         const chatRequest: ChatRequest = {
-            messages: [{
-                role: userMessage.role,
-                content: new Array<MessageContent>()
-            }]
+            messages: []
         };
 
         // 获取历史对话记录
-        // 历史记录需要成对出现，所以从第一条开始逐个追加
-        /**
-         * messages=[
-                    {"role": "system", "content": "You are a helpful assistant."},
-                    {"role": "user", "content": "What year is this year?"},
-                    {"role": "assistant", "content": "2023"},
-                    {"role": "user", "content": " xxxx ?"}
-            ]
-            */
-        
         const history = await chrome.storage.local.get(['chatHistory']);
         const chatHistory = history.chatHistory || [];
-        for (const message of chatHistory) {
-            if (message.isUser) {
-                chatRequest.messages[0].content.push(...message.content);
-            } else {
+        // 遍历历史记录，将用户和助手的消息成对添加到chatRequest.messages中
+        for (let i = 0; i < chatHistory.length; i += 2) {
+            const userMsg = chatHistory[i];
+            const assistantMsg = chatHistory[i + 1];
+            if (userMsg && assistantMsg) {
                 chatRequest.messages.push({
-                    role: message.role,
-                    content: message.content
+                    role: 'user',
+                    content: userMsg.content
+                });
+                chatRequest.messages.push({
+                    role: 'assistant',
+                    content: assistantMsg.content
                 });
             }
         }
 
-
-        chatRequest.messages[0].content.push(...userMessage.content);
+        // 添加最新的用户消息
+        chatRequest.messages.push(chatMsg);
 
         let retryCount = 0;
         const maxRetries = 3;
