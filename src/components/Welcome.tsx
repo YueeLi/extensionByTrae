@@ -6,7 +6,7 @@ interface WelcomePageProps {
     onStart: () => void;
 }
 
-const WelcomePage: React.FC<WelcomePageProps> = ({ onStart }) => {
+const Welcome: React.FC<WelcomePageProps> = ({ onStart }) => {
     return (
         <Box
             sx={{
@@ -128,4 +128,4 @@ const WelcomePage: React.FC<WelcomePageProps> = ({ onStart }) => {
     );
 };
 
-export default WelcomePage;
+export default Welcome;

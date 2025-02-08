@@ -543,23 +543,29 @@ const ChatPanel: React.FC = () => {
                     />
                     <TextField
                         fullWidth
-                        variant="outlined"
-                        placeholder="输入消息..."
+                        multiline
+                        maxRows={4}
                         value={inputValue}
-                        onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-                            setInputValue(event.target.value);
+                        onChange={(e) => setInputValue(e.target.value)}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSendMessage();
+                            }
                         }}
+                        placeholder="输入消息..."
+                        variant="outlined"
+                        size="small"
                         disabled={isLoading || isSending}
                         sx={{
-                            flex: 1,
                             '& .MuiOutlinedInput-root': {
-                                borderRadius: '8px',
-                                backgroundColor: '#F5F5F5',
+                                backgroundColor: '#F5F7FA',
+                                borderRadius: '12px',
                                 '&:hover': {
-                                    backgroundColor: '#EEEEEE'
+                                    backgroundColor: '#F0F2F5'
                                 },
-                                '&.Mui-focused': {
-                                    backgroundColor: '#FFFFFF'
+                                '& fieldset': {
+                                    border: 'none'
                                 }
                             }
                         }}

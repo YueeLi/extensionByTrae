@@ -3,7 +3,7 @@ import { Box } from '@mui/material';
 import ChatPanel from './ChatPanel';
 import SettingsPanel from './SettingsPanel';
 import Header from './Header';
-import WelcomePage from './WelcomePage';
+import Welcome from './WelcomePage';
 
 // 侧边栏面板的主页组件
 const HomePage: React.FC = () => {
@@ -20,7 +20,7 @@ const HomePage: React.FC = () => {
                 {currentPage === 'settings' ? (
                     <SettingsPanel />
                 ) : currentPage === 'home' ? (
-                    <WelcomePage onStart={() => setCurrentPage('chat')} />
+                    <Welcome onStart={() => setCurrentPage('chat')} />
                 ) : (
                     <ChatPanel />
                 )}
