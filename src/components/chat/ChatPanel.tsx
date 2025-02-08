@@ -302,17 +302,17 @@ const ChatPanel: React.FC = () => {
                     left: '50%',
                     transform: 'translate(-50%, -50%)',
                     zIndex: 1000,
-                    bgcolor: 'rgba(255, 255, 255, 0.9)',
-                    padding: 3,
-                    borderRadius: 2,
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                    bgcolor: 'rgba(255, 255, 255, 0.95)',
+                    padding: 4,
+                    borderRadius: 3,
+                    boxShadow: '0 6px 20px rgba(0, 0, 0, 0.15)',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: 1
+                    gap: 2
                 }}>
-                    <CircularProgress size={40} />
-                    <Typography variant="body2" color="textSecondary">
+                    <CircularProgress size={50} />
+                    <Typography variant="body1" color="textPrimary">
                         处理中...
                     </Typography>
                 </Box>
