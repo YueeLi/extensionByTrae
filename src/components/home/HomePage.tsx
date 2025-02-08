@@ -11,7 +11,7 @@ import ImageIcon from '@mui/icons-material/Image';
 import TerminalIcon from '@mui/icons-material/Terminal';
 import TranslateIcon from '@mui/icons-material/Translate';
 
-const DRAWER_WIDTH = 120;
+const DRAWER_WIDTH = 110;
 
 const HomePage: React.FC = () => {
     const [currentPage, setCurrentPage] = React.useState<'chat' | 'settings' | 'history'>('history');
@@ -187,7 +187,7 @@ const HomePage: React.FC = () => {
                     width: '100%',
                     transition: 'margin 0.3s ease-in-out',
                     p: 3,
-                    padding: '0px 12px',
+                    padding: '0px 2px',
                     minWidth: `calc(100% - ${DRAWER_WIDTH}px)`,
                     overflowX: 'hidden',
                 }}
