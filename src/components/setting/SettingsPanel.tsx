@@ -4,8 +4,8 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 
-import { Settings, ModelConfig } from '../types/types';
-import ModelDialog from './ModelDialog';
+import { Settings, ModelConfig } from '../../types/types';
+import ModelDialog from '../setting/ModelDialog';
 
 // 设置面板组件：管理Azure OpenAI的API配置
 interface SettingsPanelProps {
@@ -301,7 +301,20 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
     };
 
     return (
-        <Box sx={{ p: 3 }}>
+        <Box sx={{
+            height: '100%',
+            display: 'flex',
+            flexDirection: 'column',
+            bgcolor: '#FFFFFF',
+            position: 'relative',
+            backdropFilter: 'blur(10px)',
+            borderRadius: '16px',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
+            minWidth: '320px',
+            width: '100%',
+            margin: '0 auto',
+            p: 3
+        }}>
             <Typography variant="h6" sx={{ mb: 2, color: '#1A1A1A', fontWeight: 600 }}>
                 Azure LLM 设置
             </Typography>

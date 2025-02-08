@@ -12,7 +12,7 @@ import {
     Typography,
     CircularProgress
 } from '@mui/material';
-import MarkdownRenderer from '@/components/MarkdownRenderer';
+import MarkdownRenderer from '@/components/commen/MarkdownRenderer';
 import TranslateIcon from '@mui/icons-material/Translate';
 import SummarizeIcon from '@mui/icons-material/Summarize';
 import AnalyticsIcon from '@mui/icons-material/Analytics';
@@ -299,22 +299,22 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
                     display: 'flex',
                     gap: 1.5,
                     padding: '12px',
-                    bgcolor: 'rgba(255, 255, 255, 0.98)',
-                    borderRadius: '12px',
+                    bgcolor: 'rgba(255, 255, 255, 0.92)',
+                    borderRadius: '16px',
                     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
                     zIndex: 2147483647,
-                    backdropFilter: 'blur(12px)',
+                    backdropFilter: 'blur(20px)',
                     border: '1px solid rgba(26, 127, 233, 0.1)',
-                    transform: 'scale(1)',
+                    transform: 'translateY(0)',
                     transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     '&:hover': {
                         boxShadow: '0 12px 48px rgba(26, 127, 233, 0.16)',
-                        transform: 'scale(1.02)'
+                        transform: 'translateY(-4px)'
                     },
                     '& .MuiIconButton-root': {
                         width: 48,
                         height: 48,
-                        borderRadius: '10px',
+                        borderRadius: '12px',
                         backgroundColor: '#F8F9FA',
                         color: '#1A1A1A',
                         padding: '8px',
@@ -323,18 +323,22 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
                         '&:hover': {
                             backgroundColor: '#1A7FE9',
                             color: '#FFFFFF',
-                            transform: 'translateY(-2px)'
+                            transform: 'translateY(-2px) scale(1.05)',
+                            boxShadow: '0 4px 12px rgba(26, 127, 233, 0.2)'
                         },
                         '&:active': {
                             backgroundColor: '#1565C0',
-                            transform: 'translateY(0)'
+                            transform: 'translateY(0) scale(0.95)'
                         },
                         '&.Mui-disabled': {
                             backgroundColor: '#F5F5F5',
-                            color: '#CCCCCC'
+                            color: '#CCCCCC',
+                            transform: 'none',
+                            boxShadow: 'none'
                         },
                         '& .MuiSvgIcon-root': {
-                            fontSize: '20px'
+                            fontSize: '20px',
+                            transition: 'transform 0.3s ease'
                         }
                     }
                 }}

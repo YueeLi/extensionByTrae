@@ -16,31 +16,43 @@ const Header: React.FC<HeaderProps> = ({ onSettingsClick, onChatClick, onHomeCli
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '12px 20px',
-            borderBottom: '1px solid #E5E5E5',
-            bgcolor: '#FFFFFF'
+            padding: '16px 24px',
+            borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+            bgcolor: '#FFFFFF',
+            backdropFilter: 'blur(10px)',
+            position: 'sticky',
+            top: 0,
+            zIndex: 1000,
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)'
         }}>
             <IconButton
                 onClick={onHomeClick}
                 sx={{
                     padding: '8px 12px',
-                    borderRadius: '8px',
+                    borderRadius: '12px',
+                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                     '&:hover': {
-                        bgcolor: 'rgba(26, 127, 233, 0.04)'
+                        bgcolor: 'rgba(26, 127, 233, 0.04)',
+                        transform: 'translateY(-2px)'
                     }
                 }}
                 aria-label="返回主页"
             >
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <SmartToyIcon sx={{ color: '#1A7FE9', fontSize: 24 }} />
+                    <SmartToyIcon sx={{
+                        color: '#1A7FE9',
+                        fontSize: 28,
+                        filter: 'drop-shadow(0 2px 4px rgba(26, 127, 233, 0.2))'
+                    }} />
                     <Typography
-                        variant="subtitle1"
+                        variant="h6"
                         sx={{
                             fontWeight: 600,
-                            color: '#1A7FE9',
+                            fontSize: '1.25rem',
                             background: 'linear-gradient(135deg, #1A7FE9 0%, #1565C0 100%)',
                             WebkitBackgroundClip: 'text',
                             WebkitTextFillColor: 'transparent',
+                            letterSpacing: '-0.01em',
                             transition: 'all 0.3s ease'
                         }}
                     >
@@ -56,10 +68,12 @@ const Header: React.FC<HeaderProps> = ({ onSettingsClick, onChatClick, onHomeCli
                     onClick={onSettingsClick}
                     sx={{
                         color: '#666666',
-                        borderColor: '#E5E5E5',
-                        padding: '6px 16px',
-                        borderRadius: '8px',
-                        transition: 'all 0.3s ease',
+                        borderColor: 'rgba(0, 0, 0, 0.08)',
+                        padding: '8px 20px',
+                        borderRadius: '12px',
+                        fontSize: '0.95rem',
+                        fontWeight: 500,
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                         '&:hover': {
                             borderColor: '#1A7FE9',
                             color: '#1A7FE9',
@@ -78,14 +92,17 @@ const Header: React.FC<HeaderProps> = ({ onSettingsClick, onChatClick, onHomeCli
                     sx={{
                         bgcolor: '#1A7FE9',
                         color: '#FFFFFF',
-                        padding: '6px 20px',
-                        borderRadius: '8px',
+                        padding: '8px 24px',
+                        borderRadius: '12px',
+                        fontSize: '0.95rem',
                         fontWeight: 600,
-                        transition: 'all 0.3s ease',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        background: 'linear-gradient(135deg, #1A7FE9 0%, #1565C0 100%)',
+                        boxShadow: '0 4px 12px rgba(26, 127, 233, 0.25)',
                         '&:hover': {
-                            bgcolor: '#1565C0',
+                            background: 'linear-gradient(135deg, #1565C0 0%, #0D47A1 100%)',
                             transform: 'translateY(-2px)',
-                            boxShadow: '0 4px 12px rgba(26, 127, 233, 0.2)'
+                            boxShadow: '0 8px 24px rgba(26, 127, 233, 0.3)'
                         }
                     }}
                 >

@@ -8,9 +8,9 @@ import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import MicIcon from '@mui/icons-material/Mic';
-import { Message, MessageContent } from '../types/types';
-import TemplateDialog from './TemplateDialog';
-import MarkdownRenderer from './MarkdownRenderer';
+import { Message, MessageContent } from '../../types/types';
+import TemplateDialog from '../chat/TemplateDialog';
+import MarkdownRenderer from '../commen/MarkdownRenderer';
 
 const ChatPanel: React.FC = () => {
     const [messages, setMessages] = useState<Message[]>([]);
@@ -284,16 +284,16 @@ const ChatPanel: React.FC = () => {
             role="main"
             aria-live="polite"
             sx={{
-                height: '100vh',
+                height: '100%',
                 display: 'flex',
                 flexDirection: 'column',
                 position: 'relative',
                 width: '100%',
-                minWidth: '400px',
-                maxWidth: '1200px',
-                margin: '0 auto',
+                minWidth: '320px',
                 bgcolor: '#FFFFFF',
-                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                borderRadius: '16px',
+                overflow: 'hidden'
             }}>
             {isLoading && (
                 <Box sx={{
@@ -330,7 +330,7 @@ const ChatPanel: React.FC = () => {
             <List sx={{
                 flex: 1,
                 overflow: 'auto',
-                padding: '24px',
+                padding: '10px',
                 bgcolor: '#FFFFFF',
                 display: 'flex',
                 flexDirection: 'column',

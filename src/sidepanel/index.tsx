@@ -2,7 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { ThemeProvider, CssBaseline } from '@mui/material'
 import { createTheme } from '@mui/material/styles'
-import HomePage from '@/components/HomePage'
+import HomePage from '@/components/home/HomePage'
 
 // 主题配置：定义应用的颜色和排版样式
 const theme = createTheme({
