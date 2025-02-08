@@ -17,7 +17,7 @@ import {
     Box
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { ModelConfig } from '../types';
+import { ModelConfig } from '../types/model';
 
 interface ModelDialogProps {
     open: boolean;

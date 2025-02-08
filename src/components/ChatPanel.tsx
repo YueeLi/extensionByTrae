@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Box, Paper, TextField, IconButton, Typography, List, ListItem, Button, CircularProgress } from '@mui/material';
+import { Box, Paper, TextField, IconButton, Typography, List, ListItem, Button, CircularProgress, Checkbox, FormGroup, FormControlLabel, Collapse } from '@mui/material';
 import { Alert, Snackbar } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
@@ -8,15 +8,40 @@ import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import DeleteSweepIcon from '@mui/icons-material/DeleteSweep';
 import MicIcon from '@mui/icons-material/Mic';
-import { Message, MessageContent } from '../types';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import { Message, MessageContent } from '../types/message';
+import { ModelConfig } from '../types/model';
+import { MultiModelSession } from '../types/multi-model';
 import TemplateDialog from './TemplateDialog';
 import MarkdownRenderer from './MarkdownRenderer';
 
-const ChatPanel: React.FC = () => {
+interface ChatPanelProps {
+    models: ModelConfig[];
+    onSendMessage: (modelIds: string[], content: string) => Promise<void>;
+    currentSession?: MultiModelSession;
+    isMultiModel?: boolean;
+    selectedModels: string[];
+}
+
+const ChatPanel: React.FC<ChatPanelProps> = ({
+    models,
+    onSendMessage,
+    currentSession,
+    isMultiModel = false,
+    selectedModels
+}) => {
     const [messages, setMessages] = useState<Message[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
+    const [expandedModels, setExpandedModels] = useState<Record<string, boolean>>({});
+
+    const toggleExpand = (modelId: string) => {
+        setExpandedModels(prev => ({
+            ...prev,
+            [modelId]: !prev[modelId]
+        }));
+    };
     const [attachment, setAttachment] = useState<{
         type: 'image' | 'text' | 'pdf';
         content: string;
@@ -110,7 +135,6 @@ const ChatPanel: React.FC = () => {
             return;
         }
 
-        setIsLoading(true);
         try {
             let fileType: 'image' | 'text' | 'pdf';
             let content = '';
@@ -144,7 +168,6 @@ const ChatPanel: React.FC = () => {
         } catch (error) {
             setError(error instanceof Error ? error.message : '文件处理失败，请重试');
         } finally {
-            setIsLoading(false);
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
             }
@@ -156,35 +179,27 @@ const ChatPanel: React.FC = () => {
     const [inputContent, setContent] = useState<MessageContent[]>([]);
 
     const handleSendMessage = async () => {
-        if (isSending || isLoading) return;
+        if (isSending) {
+            setError('正在发送中');
+            return;
+        }
 
-        // 清除之前的debounce定时器
         if (debounceTimeout.current) {
             clearTimeout(debounceTimeout.current);
         }
 
-        // 设置新的debounce定时器
         debounceTimeout.current = setTimeout(async () => {
-            setIsLoading(true);
             setIsSending(true);
             setError(null);
 
-            // 如果没有输入文字，显示提示信息
             if (!inputValue.trim()) {
-                if (attachment) {
-                    setError('请输入文字描述后再发送文件');
-                } else {
-                    setError('请输入要发送的内容');
-                }
-                setIsLoading(false);
+                setError(attachment ? '请输入文字描述后再发送文件' : '请输入要发送的内容');
                 setIsSending(false);
                 return;
             }
 
-            // 创建新的消息内容数组，而不是修改现有的状态
-            const newContent: MessageContent[] = [];
+            const newContent = [...inputContent];
 
-            // 封装content
             if (attachment) {
                 if (attachment.type === 'image') {
                     newContent.push({
@@ -210,70 +225,41 @@ const ChatPanel: React.FC = () => {
                 text: inputValue
             });
 
-            const userMessage: Message = {
-                id: Date.now().toString(),
-                content: newContent,
-                isUser: true,
-                timestamp: Date.now(),
-                role: 'user'
-            };
-
-            setMessages(prev => [...prev, userMessage]);
-            setInputValue('');
-            setAttachment(null);
-            setContent([]); // 清空 inputContent
-
             try {
-                // 创建一个临时的 AI 消息用于流式展示
-                const tempAiMessage: Message = {
-                    id: (Date.now() + 1).toString(),
-                    content: [{
-                        type: 'text',
-                        text: ''
-                    }],
-                    isUser: false,
-                    timestamp: Date.now(),
-                    role: 'assistant'
+                const newMessage = {
+                    id: Date.now().toString(),
+                    content: newContent,
+                    isUser: true,
+                    timestamp: Date.now()
                 };
+                setMessages(prev => [...prev, newMessage]);
 
-                setMessages(prev => [...prev, tempAiMessage]);
+                await onSendMessage(selectedModels, inputValue);
 
-                const response = await chrome.runtime.sendMessage({
-                    type: 'chat',
-                    content: userMessage.content
-                });
+                // 多模型对话不再将响应添加到消息列表中
+                if (!isMultiModel) {
+                    if (currentSession?.modelResponses) {
+                        const aiMessages = currentSession.modelResponses
+                            .filter(response => response.status === 'success')
+                            .map(response => ({
+                                id: `${response.modelId}-${Date.now()}`,
+                                content: Array.isArray(response.response.content)
+                                    ? response.response.content
+                                    : [{ type: 'text', text: response.response.content }],
+                                isUser: false,
+                                timestamp: Date.now()
+                            }));
 
-                if (response.error) {
-                    throw new Error(response.error);
+                        setMessages(prev => [...prev, ...aiMessages]);
+                    }
                 }
 
-                // 更新临时消息的内容
-                setMessages(prev => prev.map(msg =>
-                    msg.id === tempAiMessage.id
-                        ? {
-                            ...msg,
-                            content: [{
-                                type: 'text',
-                                text: typeof response === 'string' ? response : response.content || '无响应内容'
-                            }]
-                        }
-                        : msg
-                ));
+                setInputValue('');
+                setAttachment(null);
+                setContent([]);
             } catch (error) {
-                const errorMessage: Message = {
-                    id: Date.now().toString(),
-                    content: [{
-                        type: 'text',
-                        text: `错误：${error instanceof Error ? error.message : '未知错误'}`
-                    }],
-                    isUser: false,
-                    timestamp: Date.now(),
-                    role: 'system'
-                };
-                setMessages(prev => [...prev, errorMessage]);
-                setError(error instanceof Error ? error.message : '未知错误');
+                setError(error instanceof Error ? error.message : '发送消息失败');
             } finally {
-                setIsLoading(false);
                 setIsSending(false);
             }
         }, 300);
@@ -295,28 +281,6 @@ const ChatPanel: React.FC = () => {
                 bgcolor: '#FFFFFF',
                 boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)'
             }}>
-            {isLoading && (
-                <Box sx={{
-                    position: 'fixed',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    zIndex: 1000,
-                    bgcolor: 'rgba(255, 255, 255, 0.9)',
-                    padding: 3,
-                    borderRadius: 2,
-                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    gap: 1
-                }}>
-                    <CircularProgress size={40} />
-                    <Typography variant="body2" color="textSecondary">
-                        处理中...
-                    </Typography>
-                </Box>
-            )}
             <Snackbar
                 open={!!error}
                 autoHideDuration={6000}
@@ -354,6 +318,87 @@ const ChatPanel: React.FC = () => {
                     }
                 }
             }}>
+                {/* 多模型会话展示 */}
+                {isMultiModel && currentSession && currentSession.question && currentSession.question.content && (
+                    <Box sx={{ mb: 2 }}>
+                        <Paper sx={{ p: 2, mb: 2, bgcolor: '#E3F2FD' }}>
+                            <Typography variant="subtitle1" sx={{ mb: 1 }}>
+                                问题
+                            </Typography>
+                            <Typography>
+                                {currentSession.question.content.map((item, index) => (
+                                    item.type === 'text' && <span key={index}>{item.text}</span>
+                                ))}
+                            </Typography>
+                        </Paper>
+
+                        <Box sx={{ display: 'grid', gridTemplateColumns: isMultiModel ? 'repeat(3, 1fr)' : '1fr', gap: 2, mb: 2 }}>
+                            {currentSession?.modelResponses?.map((response) => (
+                                <Paper key={response.modelId} sx={{
+                                    p: 2,
+                                    bgcolor: '#FFFFFF',
+                                    borderRadius: 2,
+                                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                                    transition: 'all 0.3s ease',
+                                    '&:hover': {
+                                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+                                        transform: 'translateY(-2px)'
+                                    }
+                                }}>
+                                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                                        <Typography variant="subtitle1" sx={{ fontWeight: 500, color: '#1A1A1A' }}>
+                                            {response.modelName}
+                                        </Typography>
+                                        <IconButton
+                                            size="small"
+                                            onClick={() => toggleExpand(response.modelId)}
+                                            sx={{
+                                                color: '#666666',
+                                                '&:hover': { color: '#1A7FE9' }
+                                            }}
+                                        >
+                                            {expandedModels[response.modelId] ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                                        </IconButton>
+                                    </Box>
+
+                                    {response.status === 'pending' && (
+                                        <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                                            <CircularProgress size={24} />
+                                        </Box>
+                                    )}
+
+                                    {response.status === 'error' && (
+                                        <Alert severity="error" sx={{ mb: 1 }}>
+                                            {response.error || '请求失败'}
+                                        </Alert>
+                                    )}
+
+                                    <Collapse in={expandedModels[response.modelId] || false}>
+                                        {response.status === 'success' && (
+                                            <Box>
+                                                {typeof response.response.content === 'string' ? (
+                                                    <MarkdownRenderer
+                                                        content={response.response.content}
+                                                        textColor="#1A1A1A"
+                                                    />
+                                                ) : response.response.content?.map((item, index) => (
+                                                    <Box key={index}>
+                                                        {item.type === 'text' && (
+                                                            <MarkdownRenderer
+                                                                content={item.text || ''}
+                                                                textColor="#1A1A1A"
+                                                            />
+                                                        )}
+                                                    </Box>
+                                                ))}
+                                            </Box>
+                                        )}
+                                    </Collapse>
+                                </Paper>
+                            ))}
+                        </Box>
+                    </Box>
+                )}
                 <Box sx={{ flexGrow: 1 }}>
                     {messages.map(message => (
                         <ListItem
@@ -387,13 +432,12 @@ const ChatPanel: React.FC = () => {
                                     } : {}
                                 }}
                             >
-                                {message.content.map((item, index) => (
+                                {message.content && message.content.map((item, index) => (
                                     <Box key={index}>
                                         {item.type === 'text' && (
-                                            <MarkdownRenderer
-                                                content={item.text || ''}
-                                                textColor={message.isUser ? '#FFFFFF' : '#1A1A1A'}
-                                            />
+                                            <Typography sx={{ whiteSpace: 'pre-wrap' }}>
+                                                {item.text || ''}
+                                            </Typography>
                                         )}
                                         {item.type === 'image_url' && item.image_url && (
                                             <Box sx={{ mt: 1 }}>
@@ -489,13 +533,12 @@ const ChatPanel: React.FC = () => {
                                 }
                             }}
                         >
-                            提示词模板
+                            模板
                         </Button>
                         <Button
                             variant="text"
                             size="small"
                             startIcon={<MicIcon sx={{ fontSize: 20 }} />}
-                            onClick={() => { }}
                             sx={{
                                 minWidth: 'auto',
                                 padding: '4px 10px',
@@ -508,7 +551,7 @@ const ChatPanel: React.FC = () => {
                                 }
                             }}
                         >
-                            语音模式
+                            语音输入
                         </Button>
                     </Box>
                     <Box>
@@ -549,7 +592,7 @@ const ChatPanel: React.FC = () => {
                         onChange={(event: React.ChangeEvent<HTMLInputElement>) => {
                             setInputValue(event.target.value);
                         }}
-                        disabled={isLoading || isSending}
+                        disabled={isSending}
                         sx={{
                             flex: 1,
                             '& .MuiOutlinedInput-root': {

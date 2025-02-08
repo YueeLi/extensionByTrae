@@ -1,4 +1,7 @@
-import { Settings, Message, StreamChunkResponse, ChatRequest, ModelRequestConfig, MessageContent, HandleRequest } from '../types';
+import { Settings } from '../types/model';
+import { Message, MessageContent, HandleRequestType, ChatRequest } from '../types/message';
+import { APIManager } from './api-manager';
+import { MultiModelRequestHandler } from './multi-model';
 
 // 配置侧边栏行为，使点击扩展图标时打开侧边栏，不可删除！！！
 chrome.sidePanel
@@ -15,7 +18,7 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 // 设置管理
-class SettingsManager {
+export class SettingsManager {
     static async getSettings(): Promise<Settings> {
         const result = await chrome.storage.sync.get(['models', 'defaultModelId']);
         console.log('models settings:', result);
@@ -89,175 +92,7 @@ class MessageFactory {
     }
 }
 
-// API调用管理
-class APIManager {
-    private static readonly MODEL_CONFIGS: Record<string, ModelRequestConfig> = {
-        'gpt-4o': {
-            buildUrl: (model) => `${model.endpoint}/openai/deployments/${model.deploymentName}/chat/completions?api-version=${model.apiVersion}`,
-            buildHeaders: (model) => ({
-                'Content-Type': 'application/json',
-                'api-key': model.apiKey,
-                ...model.requestConfig?.headers
-            }),
-            buildBody: (messages, model) => ({
-                messages,
-                model: model.model,
-                max_tokens: model.max_tokens || 4096,
-                temperature: model.temperature || 0.7,
-                top_p: model.top_p || 0.95,
-                frequency_penalty: model.frequency_penalty || 0,
-                presence_penalty: model.presence_penalty || 0,
-                stop: model.stop || null,
-                stream: model.stream || false,
-                ...model.requestConfig?.bodyTemplate
-            })
-        },
-        'o1-mini': {
-            buildUrl: (model) => `${model.endpoint}/openai/deployments/${model.deploymentName}/chat/completions?api-version=${model.apiVersion}`,
-            buildHeaders: (model) => ({
-                'Content-Type': 'application/json',
-                'api-key': model.apiKey,
-                ...model.requestConfig?.headers
-            }),
-            buildBody: (messages, model) => ({
-                messages,
-                model: model.model,
-                max_completion_tokens: model.max_completion_tokens || 4096,
-                temperature: model.temperature || 1.0, // o1-mini must be 1.0
-                stream: model.stream || false,
-                ...model.requestConfig?.bodyTemplate
-            })
-        },
-        'deepseek': {
-            buildUrl: (model) => `${model.endpoint}/v1/chat/completions`,
-            buildHeaders: (model) => ({
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${model.apiKey}`,
-                ...model.requestConfig?.headers
-            }),
-            buildBody: (messages, model) => ({
-                messages,
-                model: model.model,
-                max_tokens: 4096,
-                ...model.requestConfig?.bodyTemplate
-            })
-        },
-        'llama3': {
-            buildUrl: (model) => `${model.endpoint}/v1/chat/completions`,
-            buildHeaders: (model) => ({
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${model.apiKey}`,
-                ...model.requestConfig?.headers
-            }),
-            buildBody: (messages, model) => ({
-                messages,
-                model: model.model,
-                max_tokens: 4096,
-                temperature: 0.7,
-                ...model.requestConfig?.bodyTemplate
-            })
-        },
-        'claude': {
-            buildUrl: (model) => `${model.endpoint}/v1/chat/completions`,
-            buildHeaders: (model) => ({
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${model.apiKey}`,
-                'anthropic-version': '2023-06-01',
-                ...model.requestConfig?.headers
-            }),
-            buildBody: (messages, model) => ({
-                messages,
-                model: model.model,
-                max_tokens: 4096,
-                temperature: 0.7,
-                ...model.requestConfig?.bodyTemplate
-            })
-        },
-        'qwen2': {
-            buildUrl: (model) => `${model.endpoint}/v1/chat/completions`,
-            buildHeaders: (model) => ({
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${model.apiKey}`,
-                ...model.requestConfig?.headers
-            }),
-            buildBody: (messages, model) => ({
-                messages,
-                model: model.model,
-                max_tokens: 4096,
-                temperature: 0.7,
-                ...model.requestConfig?.bodyTemplate
-            })
-        }
-    };
 
-    static async processStreamChunk(chunk: string): Promise<StreamChunkResponse> {
-        if (chunk === '[DONE]') {
-            return { content: '', done: true };
-        }
-
-        try {
-            const parsed = JSON.parse(chunk);
-            const content = parsed.choices?.[0]?.delta?.content || '';
-            return { content, done: false };
-        } catch (e) {
-            console.error('解析响应数据失败:', e);
-            return { content: '', done: false };
-        }
-    }
-
-    static async callAzureOpenAI(info: ChatRequest): Promise<string> {
-        console.log('request LLM with ChatRequest:', info)
-
-        if (!info?.messages?.length) {
-            throw new Error('输入内容不能为空');
-        }
-
-        const settings = await SettingsManager.getSettings();
-        const selectedModel = settings.defaultModel;
-
-        if (!selectedModel) {
-            throw new Error('未找到指定的模型配置');
-        }
-
-        try {
-            const modelConfig = this.MODEL_CONFIGS[selectedModel.model];
-            if (!modelConfig) {
-                throw new Error(`不支持的模型类型: ${selectedModel.model}`);
-            }
-
-            const url = modelConfig.buildUrl(selectedModel);
-            const headers = modelConfig.buildHeaders(selectedModel);
-            const requestBody = modelConfig.buildBody(info.messages, selectedModel);
-
-            console.log('request LLM with requestBody:', requestBody);
-
-            const response = await fetch(url, {
-                method: 'POST',
-                headers,
-                body: JSON.stringify(requestBody)
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(`API调用失败: ${response.status} ${errorData.error?.message || response.statusText}`);
-            }
-
-            const result = await response.json();
-            if (!result.choices || !Array.isArray(result.choices) || result.choices.length === 0) {
-                throw new Error('API响应格式无效');
-            }
-            const choice = result.choices[0];
-            if (!choice.message || typeof choice.message.content !== 'string') {
-                throw new Error('API响应内容格式无效');
-            }
-            return choice.message.content;
-
-        } catch (error) {
-            console.error('API调用出错:', error);
-            throw error;
-        }
-    }
-}
 
 // 请求处理器
 class RequestHandler {
@@ -266,43 +101,33 @@ class RequestHandler {
         const chatRequest: ChatRequest = {
             messages: [{
                 role: userMessage.role,
-                content: userMessage.content
+                content: userMessage.content.find(item => item.type === 'text')?.text || ''
             }]
         };
 
-        let retryCount = 0;
-        const maxRetries = 3;
+        try {
+            const response = await APIManager.callAzureOpenAI(chatRequest);
 
-        while (retryCount < maxRetries) {
-            try {
-                const response = await APIManager.callAzureOpenAI(chatRequest);
+            // 创建助手消息对象
+            const assistantMessage = MessageFactory.createAssistantMessage([{
+                type: 'text',
+                text: response
+            }]);
 
-                // 创建助手消息对象
-                const assistantMessage = MessageFactory.createAssistantMessage([{
-                    type: 'text',
-                    text: response
-                }]);
+            // 更新聊天历史
+            await HistoryManager.updateHistory(userMessage, assistantMessage);
 
-                // 更新聊天历史
-                await HistoryManager.updateHistory(userMessage, assistantMessage);
-
-                return response;
-            } catch (error) {
-                retryCount++;
-                if (retryCount === maxRetries) {
-                    throw error;
-                }
-                // 指数退避重试
-                await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
-            }
+            return response;
+        } catch (error) {
+            console.error('API请求失败:', error);
+            throw error;
         }
-
-        throw new Error('请求失败，已达到最大重试次数');
     }
 
-    static async handleRequest(msg: HandleRequest): Promise<string> {
-        let content = msg.content;
-        const textContent = content.find(item => item.type === 'text')?.text || '';
+    static async handleRequest(msg: { type: HandleRequestType; content: MessageContent[] }): Promise<string> {
+        // 确保content是数组
+        let content = Array.isArray(msg.content) ? msg.content : [msg.content].filter(Boolean);
+        const textContent = content.find(item => item?.type === 'text')?.text || '';
 
         if (msg.type === 'translate') {
             content = [{
@@ -334,7 +159,7 @@ class RequestHandler {
     }
 }
 
-chrome.runtime.onMessage.addListener((message: HandleRequest, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
     if (!message.type) {
         console.error('Message type not specified');
         sendResponse({ error: '消息类型未指定' });
@@ -344,8 +169,32 @@ chrome.runtime.onMessage.addListener((message: HandleRequest, _sender, sendRespo
     // 处理异步消息
     (async () => {
         try {
-            const response = await RequestHandler.handleRequest(message);
-            sendResponse({ content: response });
+            if (message.type === 'multiModelChat') {
+                // 获取模型配置
+                const settings = await SettingsManager.getSettings();
+                const { models } = settings;
+
+                // 处理多模型请求
+                const responses = await MultiModelRequestHandler.handleMultiModelRequest({
+                    sessionId: crypto.randomUUID(),
+                    modelIds: message.modelIds,
+                    messages: [{
+                        role: 'user',
+                        content: message.content
+                    }]
+                }, models);
+
+                // 返回响应结果
+                sendResponse({
+                    sessionId: message.sessionId,
+                    modelResponses: responses,
+                    timestamp: Date.now(),
+                    selectedModels: message.modelIds
+                });
+            } else {
+                const response = await RequestHandler.handleRequest(message);
+                sendResponse({ content: response });
+            }
         } catch (error) {
             console.error('处理消息时出错:', error);
             sendResponse({

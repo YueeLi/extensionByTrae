@@ -4,7 +4,7 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 
-import { Settings, ModelConfig } from '../types';
+import { Settings, ModelConfig } from '../types/model';
 import ModelDialog from './ModelDialog';
 
 // 设置面板组件：管理Azure OpenAI的API配置
@@ -100,26 +100,47 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
         setIsModelDialogOpen(true);
     };
 
-    const handleDeleteModel = (modelId: string) => {
-        setSettings(prev => ({
-            ...prev,
-            models: prev.models.filter(m => m.id !== modelId)
-        }));
+    const handleDeleteModel = async (modelId: string) => {
+        try {
+            const updatedModels = settings.models.filter(m => m.id !== modelId);
+            await chrome.storage.sync.set({ models: updatedModels });
+            setSettings(prev => ({
+                ...prev,
+                models: updatedModels
+            }));
+            // 如果删除的是默认模型，需要更新默认模型
+            if (modelId === defaultModelId && updatedModels.length > 0) {
+                await handleSetDefaultModel(updatedModels[0].id);
+            }
+            setError(null);
+            setSaveStatus('success');
+        } catch (error) {
+            setError('删除模型失败，请重试');
+            setSaveStatus('error');
+        }
     };
 
-    const handleSaveModelConfig = () => {
-        if (editingModel) {
+    const handleSaveModelConfig = async () => {
+        try {
+            let updatedModels;
+            if (editingModel) {
+                updatedModels = settings.models.map(m => m.id === editingModel.id ? modelFormData : m);
+            } else {
+                updatedModels = [...settings.models, modelFormData];
+            }
+
+            await chrome.storage.sync.set({ models: updatedModels });
             setSettings(prev => ({
                 ...prev,
-                models: prev.models.map(m => m.id === editingModel.id ? modelFormData : m)
+                models: updatedModels
             }));
-        } else {
-            setSettings(prev => ({
-                ...prev,
-                models: [...prev.models, modelFormData]
-            }));
+            setError(null);
+            setSaveStatus('success');
+            setIsModelDialogOpen(false);
+        } catch (error) {
+            setError('保存模型配置失败，请重试');
+            setSaveStatus('error');
         }
-        setIsModelDialogOpen(false);
     };
 
     const [modelFormData, setModelFormData] = useState<ModelConfig>({
@@ -140,6 +161,14 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
     });
 
     const validateModelSettings = async (model: ModelConfig) => {
+        if (!model.name?.trim()) {
+            throw new Error('模型名称不能为空');
+        }
+
+        if (!model.model?.trim()) {
+            throw new Error('模型标识不能为空');
+        }
+
         if (!model.deploymentName.trim()) {
             throw new Error(`模型 "${model.name}" 的 Deployment Name 不能为空`);
         }

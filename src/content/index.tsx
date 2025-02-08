@@ -17,7 +17,7 @@ import TranslateIcon from '@mui/icons-material/Translate';
 import SummarizeIcon from '@mui/icons-material/Summarize';
 import AnalyticsIcon from '@mui/icons-material/Analytics';
 import ExplainIcon from '@mui/icons-material/Help';
-import { MessageContent } from '../types';
+import { MessageContent } from '../types/message';
 
 // 在文件开头添加调试日志
 console.log('Content script loaded');
@@ -56,17 +56,14 @@ const ResultPanel: React.FC<ResultPanelProps> = ({ result, position, onClose }) 
     if (!result) return null;
 
     // 计算视口高度和结果面板的位置
-    const viewportHeight = window.innerHeight;
-    const panelHeight = 300; // 预估结果面板高度
-    const spaceBelow = viewportHeight - position.y - 45;
-    const showBelow = spaceBelow >= panelHeight;
+    const showBelow = (window.innerHeight - position.y - 45) >= 300; // 300是预估结果面板高度
 
     return (
         <Box
             sx={{
                 position: 'fixed',
                 left: position.x,
-                top: showBelow ? position.y + 45 : position.y - panelHeight - 45,
+                top: showBelow ? position.y + 45 : position.y - 300 - 45, // 使用固定高度300px替代未定义的panelHeight
                 maxWidth: '600px',
                 width: 'auto',
                 minWidth: '320px',
@@ -382,16 +379,10 @@ const renderToolbar = (position: { x: number; y: number }) => {
     try {
         cleanupToolbar();
         // 计算视口尺寸
-        const viewportWidth = window.innerWidth;
-        const viewportHeight = window.innerHeight;
-        // 工具栏预估尺寸
-        const toolbarWidth = 200;
-        const toolbarHeight = 100;
-
         // 调整位置确保在视口内
         const adjustedPosition = {
-            x: Math.min(Math.max(0, position.x), viewportWidth - toolbarWidth),
-            y: Math.min(Math.max(45, position.y), viewportHeight - toolbarHeight)
+            x: Math.min(Math.max(0, position.x), window.innerWidth - 200), // 200是工具栏预估宽度
+            y: Math.min(Math.max(45, position.y), window.innerHeight - 100) // 100是工具栏预估高度
         };
 
         toolbarRoot = ReactDOM.createRoot(container);
