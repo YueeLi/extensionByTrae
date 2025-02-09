@@ -33,7 +33,7 @@ export interface ModelConfig {
 export interface ModelRequestConfig {
     buildUrl: (model: ModelConfig) => string;
     buildHeaders: (model: ModelConfig) => Record<string, string>;
-    buildBody: (messages: LLMRequestMessage[], model: ModelConfig) => LLMRequestBody;  // 简化参数类型
+    buildBody: (messages: LLMRequestMessage[], model: ModelConfig) => LLMRequestFullBody;  // 简化参数类型
 }
 
 // 设置相关接口
@@ -72,6 +72,16 @@ export interface Message {
     role: MessageRole;
 }
 
+// 会话消息接口
+export interface Sessions {
+    id: string;
+    title: string;
+    messages: Message[];
+    lastMessage: string;
+    timestamp: number;
+    messagesCount: number;
+}
+
 // 聊天消息接口
 export interface LLMRequestMessage {
     role: MessageRole;
@@ -79,7 +89,7 @@ export interface LLMRequestMessage {
 }
 
 // 聊天请求体
-export interface LLMRequestBody {
+export interface LLMRequestFullBody {
     messages: LLMRequestMessage[];
     model?: string;
     temperature?: number;  // 控制输出的随机性 (0-1)
@@ -96,7 +106,7 @@ export interface LLMRequestBody {
 export type ExtensionRequestType = 'chat' | 'translate' | 'summarize' | 'analyze' | 'explain';
 
 // 插件请求内容
-export interface HandleExtRequest {
+export interface HandleExtensionRequest {
     type: ExtensionRequestType;
     content: MessageContent[];
 }

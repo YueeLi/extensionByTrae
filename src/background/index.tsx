@@ -1,4 +1,4 @@
-import { HandleExtRequest, Message, LLMRequestMessage } from '../types/types';
+import { HandleExtensionRequest, Message, LLMRequestMessage } from '../types/types';
 import { HistoryManager } from './history';
 import { MessageFactory } from './message';
 import { APIManager } from './api';
@@ -81,7 +81,7 @@ class RequestHandler {
         throw new Error('请求失败，已达到最大重试次数');
     }
 
-    static async handleRequest(msg: HandleExtRequest): Promise<string> {
+    static async handleRequest(msg: HandleExtensionRequest): Promise<string> {
         let content = msg.content;
         const textContent = content.find(item => item.type === 'text')?.text || '';
 
@@ -115,7 +115,7 @@ class RequestHandler {
     }
 }
 
-chrome.runtime.onMessage.addListener((message: HandleExtRequest, _sender, sendResponse) => {
+chrome.runtime.onMessage.addListener((message: HandleExtensionRequest, _sender, sendResponse) => {
     if (!message.type) {
         console.error('Message type not specified');
         sendResponse({ error: '消息类型未指定' });
