@@ -10,11 +10,25 @@ import MenuIcon from '@mui/icons-material/Menu';
 import ImageIcon from '@mui/icons-material/Image';
 import TerminalIcon from '@mui/icons-material/Terminal';
 import TranslateIcon from '@mui/icons-material/Translate';
+import BugReportIcon from '@mui/icons-material/BugReport';
+import SessionDebugPanel from '../chat/SessionDebugPanel';
 
 const DRAWER_WIDTH = 110;
 
 const HomePage: React.FC = () => {
-    const [currentPage, setCurrentPage] = React.useState<'chat' | 'settings' | 'history'>('history');
+    const [currentPage, setCurrentPage] = React.useState<'chat' | 'settings' | 'debug' | 'history'>('history');
+
+    React.useEffect(() => {
+        const handleNavigate = (event: CustomEvent<{ page: 'chat' | 'settings' | 'history' }>) => {
+            setCurrentPage(event.detail.page);
+        };
+
+        window.addEventListener('navigate', handleNavigate as EventListener);
+
+        return () => {
+            window.removeEventListener('navigate', handleNavigate as EventListener);
+        };
+    }, []);
 
     const menuItems = [
         {
@@ -40,7 +54,8 @@ const HomePage: React.FC = () => {
         {
             group: '设置管理',
             items: [
-                { id: 'settings', icon: <SettingsIcon />, text: 'AI模型' }
+                { id: 'settings', icon: <SettingsIcon />, text: 'AI模型' },
+                { id: 'debug', icon: <BugReportIcon />, text: '插件后台' }
             ]
         }
     ];
@@ -111,7 +126,15 @@ const HomePage: React.FC = () => {
                                 <ListItem
                                     button
                                     key={item.id}
-                                    onClick={() => setCurrentPage(item.id as any)}
+                                    onClick={() => {
+                                        if (item.id === 'chat') {
+                                            setCurrentPage('chat');
+                                            // 触发新建会话事件
+                                            window.dispatchEvent(new CustomEvent('newChat'));
+                                        } else {
+                                            setCurrentPage(item.id as any);
+                                        }
+                                    }}
                                     selected={currentPage === item.id}
                                     sx={{
                                         mb: 0.5,
@@ -216,6 +239,8 @@ const HomePage: React.FC = () => {
                         <SettingsPanel />
                     ) : currentPage === 'history' ? (
                         <HistoryPanel />
+                    ) : currentPage === 'debug' ? (
+                        <SessionDebugPanel visible={true} />
                     ) : (
                         <ChatPanel />
                     )}

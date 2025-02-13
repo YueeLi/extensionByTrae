@@ -146,6 +146,7 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
         const cleanup = () => {
             setLoadingStates({});
             setError('');
+            setContent([]);
         };
         return cleanup;
     }, []);
@@ -174,13 +175,10 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
 
         setLoadingStates(prev => ({ ...prev, [type]: true }));
 
-        inputContent.push(
-            {
-                type: 'text',
-                text: selectedText
-            }
-        )
-        setContent(inputContent)
+        setContent([{
+            type: 'text',
+            text: selectedText
+        }])
 
         try {
             if (!chrome.runtime) {

@@ -11,18 +11,28 @@ import MicIcon from '@mui/icons-material/Mic';
 import { Message, MessageContent } from '../../types/types';
 import TemplateDialog from '../chat/TemplateDialog';
 import MarkdownRenderer from '../commen/MarkdownRenderer';
+import AddIcon from '@mui/icons-material/Add';
 
 const ChatPanel: React.FC = () => {
     const [messages, setMessages] = useState<Message[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [isTemplateDialogOpen, setIsTemplateDialogOpen] = useState(false);
+    const [currentSession, setCurrentSession] = useState<{
+        id: string;
+        title: string;
+    } | null>(null);
     const [attachment, setAttachment] = useState<{
         type: 'image' | 'text' | 'pdf';
         content: string;
         name: string;
     } | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    const navigate = (page: 'chat' | 'settings' | 'history') => {
+        const event = new CustomEvent('navigate', { detail: { page } });
+        window.dispatchEvent(event);
+    };
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -33,21 +43,69 @@ const ChatPanel: React.FC = () => {
     }, [messages]);
 
     useEffect(() => {
-        loadChatHistory();
+        const handleNewChat = () => {
+            setCurrentSession(null);
+            setMessages([]);
+        };
+
+        const handleSessionChange = async () => {
+            try {
+                const response = await chrome.runtime.sendMessage({
+                    type: 'getCurrentSession'
+                });
+
+                if (response.error) {
+                    throw new Error(response.error);
+                }
+
+                if (response.session) {
+                    setCurrentSession({
+                        id: response.session.id,
+                        title: response.session.title
+                    });
+                }
+            } catch (err) {
+                setError('获取当前会话失败');
+                console.error('获取当前会话失败:', err);
+            }
+        };
+
+        window.addEventListener('newChat', handleNewChat);
+        handleSessionChange(); // 初始化时获取当前会话
+
+        return () => {
+            window.removeEventListener('newChat', handleNewChat);
+        };
     }, []);
 
-    const loadChatHistory = () => {
-        chrome.storage.local.get(['chatHistory'], (result) => {
-            if (result.chatHistory) {
-                setMessages(result.chatHistory);
+    useEffect(() => {
+        if (currentSession?.id) {
+            loadChatHistory();
+        }
+    }, [currentSession]);
+
+    const loadChatHistory = async () => {
+        try {
+            if (!currentSession?.id) return;
+
+            const response = await chrome.runtime.sendMessage({
+                type: 'getSessionMessages',
+                sessionId: currentSession.id
+            });
+
+            if (response.error) {
+                throw new Error(response.error);
             }
-        });
+
+            setMessages(response.messages || []);
+        } catch (err) {
+            setError('加载对话记录失败');
+            console.error('加载对话记录失败:', err);
+        }
     };
 
     const clearChatHistory = () => {
-        chrome.storage.local.remove(['chatHistory'], () => {
-            setMessages([]);
-        });
+        setMessages([]);
     };
 
     const handleOpenTemplates = () => {
@@ -87,13 +145,29 @@ const ChatPanel: React.FC = () => {
         URL.revokeObjectURL(url);
     };
 
-    useEffect(() => {
-        if (messages.length > 0) {
-            chrome.storage.local.set({
-                chatHistory: messages.slice(-50) // 增加保存的消息数量到50条
+
+    const handleCreateSession = async () => {
+        try {
+            const response = await chrome.runtime.sendMessage({
+                type: 'createSession'
             });
+
+            console.log('handleCreateSession 创建新会话:', response)
+
+            if (!response || response.error) {
+                throw new Error(response?.error || '创建会话失败');
+            }
+
+            setCurrentSession({
+                id: response.session.id,
+                title: response.session.title
+            });
+            clearChatHistory();
+        } catch (err) {
+            setError('创建新会话失败');
         }
-    }, [messages]);
+    };
+
     const [inputValue, setInputValue] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -101,9 +175,19 @@ const ChatPanel: React.FC = () => {
         const file = event.target.files?.[0];
         if (!file) return;
 
-        const maxSize = 10 * 1024 * 1024; // 10MB
+        // 根据文件类型设置不同的大小限制
+        let maxSize: number;
+        if (file.type.startsWith('image/')) {
+            maxSize = 5 * 1024 * 1024; // 图片限制5MB
+        } else if (file.type === 'application/pdf') {
+            maxSize = 20 * 1024 * 1024; // PDF限制20MB
+        } else {
+            maxSize = 10 * 1024 * 1024; // 其他文件限制10MB
+        }
+
         if (file.size > maxSize) {
-            setError(`文件大小超出限制（最大${Math.floor(maxSize / 1024 / 1024)}MB）`);
+            const sizeInMB = Math.floor(maxSize / 1024 / 1024);
+            setError(`${file.type.startsWith('image/') ? '图片' : file.type === 'application/pdf' ? 'PDF' : '文件'}大小超出限制（最大${sizeInMB}MB）`);
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
             }
@@ -163,6 +247,27 @@ const ChatPanel: React.FC = () => {
             clearTimeout(debounceTimeout.current);
         }
 
+        // 如果当前没有会话，先创建一个新会话
+        if (!currentSession?.id) {
+            try {
+                const response = await chrome.runtime.sendMessage({
+                    type: 'createSession'
+                });
+
+                if (!response || response.error) {
+                    throw new Error(response?.error || '创建会话失败');
+                }
+
+                setCurrentSession({
+                    id: response.session.id,
+                    title: response.session.title
+                });
+            } catch (err) {
+                setError('创建新会话失败');
+                return;
+            }
+        }
+
         // 设置新的debounce定时器
         debounceTimeout.current = setTimeout(async () => {
             setIsLoading(true);
@@ -181,7 +286,7 @@ const ChatPanel: React.FC = () => {
                 return;
             }
 
-            // 创建新的消息内容数组，而不是修改现有的状态
+            // 创建新的消息内容数组
             const newContent: MessageContent[] = [];
 
             // 封装content
@@ -240,7 +345,7 @@ const ChatPanel: React.FC = () => {
 
                 const response = await chrome.runtime.sendMessage({
                     type: 'chat',
-                    content: userMessage.content
+                    content: newContent
                 });
 
                 if (response.error) {
@@ -295,6 +400,50 @@ const ChatPanel: React.FC = () => {
                 borderRadius: '16px',
                 overflow: 'hidden'
             }}>
+            <Box sx={{
+                p: 3,
+                height: '64px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+                background: 'linear-gradient(135deg, #FFFFFF 0%, #F8F9FA 100%)'
+            }}>
+                <IconButton
+                    onClick={() => navigate('history')}
+                    sx={{
+                        color: '#666666',
+                        '&:hover': {
+                            color: '#1A7FE9',
+                            bgcolor: 'rgba(26, 127, 233, 0.04)'
+                        }
+                    }}
+                >
+                    <ArrowBackIcon />
+                </IconButton>
+                <Typography variant="h6" sx={{
+                    color: '#1A1A1A',
+                    fontWeight: 600,
+                    fontSize: '1.1rem',
+                    flex: 1,
+                    textAlign: 'center',
+                    mx: 2
+                }}>
+                    {currentSession?.title || '新对话'}
+                </Typography>
+                <IconButton
+                    onClick={handleCreateSession}
+                    sx={{
+                        color: '#666666',
+                        '&:hover': {
+                            color: '#1A7FE9',
+                            bgcolor: 'rgba(26, 127, 233, 0.04)'
+                        }
+                    }}
+                >
+                    <AddIcon />
+                </IconButton>
+            </Box>
             {isLoading && (
                 <Box sx={{
                     position: 'fixed',
@@ -313,7 +462,7 @@ const ChatPanel: React.FC = () => {
                 }}>
                     <CircularProgress size={50} />
                     <Typography variant="body1" color="textPrimary">
-                        处理中...
+                        模型思考中...
                     </Typography>
                 </Box>
             )}

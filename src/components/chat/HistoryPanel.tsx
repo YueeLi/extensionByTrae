@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
     List,
@@ -8,48 +8,158 @@ import {
     IconButton,
     Divider,
     Paper,
-    Fab
+    Fab,
+    TextField
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ChatIcon from '@mui/icons-material/Chat';
 import AddIcon from '@mui/icons-material/Add';
+import EditIcon from '@mui/icons-material/Edit';
+import PushPinIcon from '@mui/icons-material/PushPin';
 
 interface ChatHistory {
     id: string;
     title: string;
     lastMessage: string;
     timestamp: number;
-    messageCount: number;
+    messagesCount: number;
+    isPinned?: boolean;
 }
 
-const mockHistoryData: ChatHistory[] = [
-    {
-        id: '1',
-        title: '关于React性能优化的讨论',
-        lastMessage: '使用useMemo和useCallback可以有效避免不必要的重渲染...',
-        timestamp: Date.now() - 1000 * 60 * 30, // 30分钟前
-        messageCount: 12
-    },
-    {
-        id: '2',
-        title: 'TypeScript类型系统探讨',
-        lastMessage: '泛型是TypeScript中最强大的特性之一，它可以...',
-        timestamp: Date.now() - 1000 * 60 * 60 * 2, // 2小时前
-        messageCount: 8
-    },
-    {
-        id: '3',
-        title: '前端构建工具对比',
-        lastMessage: 'Vite相比传统的webpack，在开发环境下的启动速度...',
-        timestamp: Date.now() - 1000 * 60 * 60 * 24, // 1天前
-        messageCount: 15
-    },
-];
-
 const HistoryPanel: React.FC = () => {
+    const [sessions, setSessions] = useState<ChatHistory[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
+    const [editingTitle, setEditingTitle] = useState('');
+
     const navigate = (page: 'chat' | 'settings' | 'history') => {
         const event = new CustomEvent('navigate', { detail: { page } });
         window.dispatchEvent(event);
+    };
+
+    useEffect(() => {
+        loadSessions();
+    }, []);
+
+    const loadSessions = async () => {
+        try {
+            const response = await chrome.runtime.sendMessage({
+                type: 'getSessions'
+            });
+
+            if (response.error) {
+                throw new Error(response.error);
+            }
+
+            const formattedSessions = response.sessions.map((session: any) => ({
+                id: session.id,
+                title: session.title || '新对话',
+                lastMessage: session.lastMessage || '暂无消息',
+                timestamp: session.timestamp || Date.now(),
+                messagesCount: session.messagesCount || 0,
+                isPinned: session.isPinned || false
+            }));
+
+            // 对会话进行排序：先按置顶状态排序，再按时间戳排序
+            const sortedSessions = formattedSessions.sort((a: ChatHistory, b: ChatHistory) => {
+                if (a.isPinned && !b.isPinned) return -1;
+                if (!a.isPinned && b.isPinned) return 1;
+                return b.timestamp - a.timestamp;
+            });
+
+            setSessions(sortedSessions);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : '加载会话失败');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleRenameSession = async (sessionId: string) => {
+        if (!editingTitle.trim()) {
+            setEditingSessionId(null);
+            return;
+        }
+
+        try {
+            await chrome.runtime.sendMessage({
+                type: 'updateSessionTitle',
+                sessionId,
+                title: editingTitle.trim()
+            });
+
+            loadSessions(); // 重新加载会话列表
+            setEditingSessionId(null);
+            setEditingTitle('');
+        } catch (err) {
+            setError('重命名会话失败');
+        }
+    };
+
+    const handleTogglePin = async (sessionId: string, event: React.MouseEvent) => {
+        event.stopPropagation();
+        try {
+            await chrome.runtime.sendMessage({
+                type: 'toggleSessionPin',
+                sessionId
+            });
+            loadSessions(); // 重新加载会话列表
+        } catch (err) {
+            setError('置顶操作失败');
+        }
+    };
+
+    const handleSessionClick = async (sessionId: string) => {
+        try {
+            const response = await chrome.runtime.sendMessage({
+                type: 'setCurrentSession',
+                sessionId
+            });
+
+            if (response.error) {
+                throw new Error(response.error);
+            }
+
+            // 确保会话切换成功后再导航
+            if (response.success) {
+                navigate('chat');
+            } else {
+                throw new Error('会话切换失败');
+            }
+        } catch (err) {
+            setError(err instanceof Error ? err.message : '切换会话失败');
+            console.error('切换会话失败:', err);
+        }
+    };
+
+    const handleCreateSession = async () => {
+        try {
+            const response = await chrome.runtime.sendMessage({
+                type: 'createSession'
+            });
+
+            if (response.error) {
+                throw new Error(response.error);
+            }
+
+            navigate('chat');
+        } catch (err) {
+            setError('创建新会话失败');
+        }
+    };
+
+    const handleDeleteSession = async (sessionId: string, event: React.MouseEvent) => {
+        event.stopPropagation();
+        try {
+            await chrome.runtime.sendMessage({
+                type: 'deleteSession',
+                sessionId
+            });
+            loadSessions(); // 重新加载会话列表
+        } catch (err) {
+            setError('删除会话失败');
+        }
     };
 
     const formatDate = (timestamp: number) => {
@@ -89,6 +199,10 @@ const HistoryPanel: React.FC = () => {
             <Box
                 sx={{
                     p: 3,
+                    height: '64px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
                     borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
                     background: 'linear-gradient(135deg, #FFFFFF 0%, #F8F9FA 100%)'
                 }}
@@ -131,7 +245,7 @@ const HistoryPanel: React.FC = () => {
                     }
                 }}
             >
-                {mockHistoryData.map((history, index) => (
+                {sessions.map((history, index) => (
                     <React.Fragment key={history.id}>
                         {index > 0 && <Divider sx={{ my: 1.5, opacity: 0.08 }} />}
                         <Paper
@@ -142,6 +256,8 @@ const HistoryPanel: React.FC = () => {
                                 borderRadius: '12px',
                                 overflow: 'hidden',
                                 border: '1px solid transparent',
+                                bgcolor: history.isPinned ? 'rgba(26, 127, 233, 0.04)' : 'transparent',
+                                borderLeft: history.isPinned ? '4px solid #1A7FE9' : '1px solid transparent',
                                 '&:hover': {
                                     transform: 'translateY(-2px)',
                                     bgcolor: 'rgba(26, 127, 233, 0.04)',
@@ -155,6 +271,7 @@ const HistoryPanel: React.FC = () => {
                             }}
                         >
                             <ListItem
+                                onClick={() => handleSessionClick(history.id)}
                                 sx={{
                                     borderRadius: 2,
                                     cursor: 'pointer',
@@ -178,7 +295,38 @@ const HistoryPanel: React.FC = () => {
                                                     letterSpacing: '-0.01em'
                                                 }}
                                             >
-                                                {history.title}
+                                                {editingSessionId === history.id ? (
+                                                    <TextField
+                                                        autoFocus
+                                                        fullWidth
+                                                        value={editingTitle}
+                                                        onChange={(e) => setEditingTitle(e.target.value)}
+                                                        onBlur={() => handleRenameSession(history.id)}
+                                                        onKeyPress={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                handleRenameSession(history.id);
+                                                            }
+                                                        }}
+                                                        size="small"
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        sx={{
+                                                            '& .MuiOutlinedInput-root': {
+                                                                fontSize: '0.95rem',
+                                                                '& fieldset': {
+                                                                    borderColor: 'rgba(26, 127, 233, 0.2)'
+                                                                },
+                                                                '&:hover fieldset': {
+                                                                    borderColor: 'rgba(26, 127, 233, 0.4)'
+                                                                },
+                                                                '&.Mui-focused fieldset': {
+                                                                    borderColor: '#1A7FE9'
+                                                                }
+                                                            }
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    history.title
+                                                )}
                                             </Typography>
                                         </Box>
                                     }
@@ -218,18 +366,55 @@ const HistoryPanel: React.FC = () => {
                                                         gap: 0.5
                                                     }}
                                                 >
-                                                    {formatDate(history.timestamp)} · {history.messageCount}条对话
+                                                    {formatDate(history.timestamp)} · {history.messagesCount}条对话
                                                 </Typography>
                                                 <Box
                                                     className="history-actions"
                                                     sx={{
                                                         opacity: 0,
                                                         transform: 'translateX(10px)',
-                                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
+                                                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                                        display: 'flex',
+                                                        gap: 1
                                                     }}
                                                 >
                                                     <IconButton
                                                         size="small"
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setEditingSessionId(history.id);
+                                                            setEditingTitle(history.title);
+                                                        }}
+                                                        sx={{
+                                                            color: '#666666',
+                                                            transition: 'all 0.2s ease',
+                                                            '&:hover': {
+                                                                color: '#1A7FE9',
+                                                                bgcolor: 'rgba(26, 127, 233, 0.08)',
+                                                                transform: 'scale(1.1)'
+                                                            }
+                                                        }}
+                                                    >
+                                                        <EditIcon fontSize="small" />
+                                                    </IconButton>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={(e) => handleTogglePin(history.id, e)}
+                                                        sx={{
+                                                            color: history.isPinned ? '#1A7FE9' : '#666666',
+                                                            transition: 'all 0.2s ease',
+                                                            '&:hover': {
+                                                                color: '#1A7FE9',
+                                                                bgcolor: 'rgba(26, 127, 233, 0.08)',
+                                                                transform: 'scale(1.1)'
+                                                            }
+                                                        }}
+                                                    >
+                                                        <PushPinIcon fontSize="small" />
+                                                    </IconButton>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={(e) => handleDeleteSession(history.id, e)}
                                                         sx={{
                                                             color: '#666666',
                                                             transition: 'all 0.2s ease',
@@ -255,7 +440,7 @@ const HistoryPanel: React.FC = () => {
             <Fab
                 color="primary"
                 aria-label="新建对话"
-                onClick={() => navigate('chat')}
+                onClick={handleCreateSession}
                 sx={{
                     position: 'fixed',
                     right: 32,

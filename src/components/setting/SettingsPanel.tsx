@@ -301,27 +301,49 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
     };
 
     return (
-        <Box sx={{
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            bgcolor: '#FFFFFF',
-            position: 'relative',
-            backdropFilter: 'blur(10px)',
-            borderRadius: '16px',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.08)',
-            minWidth: '320px',
-            width: '100%',
-            margin: '0 auto',
-            p: 3
-        }}>
-            <Typography variant="h6" sx={{ mb: 2, color: '#1A1A1A', fontWeight: 600 }}>
-                Azure LLM 设置
-            </Typography>
-            <Typography variant="body2" sx={{ mb: 3, color: '#666666' }}>
-                配置您的Azure OpenAI模型参数，支持多个模型配置和灵活的API调用方式
-            </Typography>
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+        <Box
+            sx={{
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                bgcolor: '#FFFFFF',
+                position: 'relative',
+                backdropFilter: 'blur(10px)',
+                borderRadius: '16px',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
+                minWidth: '320px',
+                width: '100%'
+            }}
+        >
+            <Box
+                sx={{
+                    p: 3,
+                    height: '64px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+                    background: 'linear-gradient(135deg, #FFFFFF 0%, #F8F9FA 100%)'
+                }}
+            >
+                <Typography variant="h6" sx={{
+                    color: '#1A1A1A',
+                    fontWeight: 600,
+                    fontSize: '1.25rem',
+                    letterSpacing: '-0.01em'
+                }}>
+                    Azure LLM 设置
+                </Typography>
+                <Typography variant="body2" sx={{
+                    color: '#666666',
+                    mt: 1,
+                    fontSize: '0.875rem',
+                    opacity: 0.8
+                }}>
+                    配置您的Azure OpenAI模型参数，支持多个模型配置和灵活的API调用方式
+                </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, p: 3 }}>
                 <Box>
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                         <Typography variant="subtitle1" sx={{ color: '#1A1A1A', fontWeight: 500 }}>模型配置</Typography>

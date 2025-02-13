@@ -73,13 +73,14 @@ export interface Message {
 }
 
 // 会话消息接口
-export interface Sessions {
+export interface Session {
     id: string;
     title: string;
     messages: Message[];
     lastMessage: string;
     timestamp: number;
     messagesCount: number;
+    isPinned?: boolean;
 }
 
 // 聊天消息接口
