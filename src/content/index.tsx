@@ -161,7 +161,7 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
     };
 
     // 处理悬浮工具栏中的操作
-    const handleAction = async (type: string) => {
+    const handleAction = async (operate: string) => {
         const selectedText = window.getSelection()?.toString().trim() || '';
 
         if (!selectedText) {
@@ -173,24 +173,30 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
             return;
         }
 
-        setLoadingStates(prev => ({ ...prev, [type]: true }));
+        setLoadingStates(prev => ({ ...prev, [operate]: true }));
 
-        setContent([{
+        const newContent: MessageContent[] = [{
             type: 'text',
             text: selectedText
-        }])
+        }];
+
+        setContent(newContent);
 
         try {
             if (!chrome.runtime) {
                 throw new Error('扩展未准备就绪，请刷新页面重试');
             }
 
-            console.log('inputContent:', inputContent)
-
             // 发送处理请求到background
+            console.log('Sending message to background:', {
+                type: 'content',
+                operate: operate,
+                content: newContent
+            });
             const response = await chrome.runtime.sendMessage({
-                type,
-                content: inputContent
+                type: 'content',
+                operate: operate,
+                content: newContent
             });
 
             // 统一消息格式
@@ -211,7 +217,7 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
                 <ResultPanel
                     position={position}
                     result={{
-                        type,
+                        type: operate,
                         content: message.content,
                         text: selectedText
                     }}
@@ -223,13 +229,13 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
             );
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : '未知错误';
-            setError(`${type}操作失败: ${errorMessage}`);
+            setError(`${operate}操作失败: ${errorMessage}`);
         } finally {
-            setLoadingStates(prev => ({ ...prev, [type]: false }));
+            setLoadingStates(prev => ({ ...prev, [operate]: false }));
         }
     };
 
-    const renderActionButton = (type: string, icon: React.ReactNode, label: string) => (
+    const renderActionButton = (operate: string, icon: React.ReactNode, label: string) => (
         <Box
             sx={{
                 display: 'flex',
@@ -239,8 +245,8 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
             }}
         >
             <IconButton
-                onClick={() => handleAction(type)}
-                disabled={loadingStates[type]}
+                onClick={() => handleAction(operate)}
+                disabled={loadingStates[operate]}
                 sx={{
                     width: 32,
                     height: 32,
@@ -249,7 +255,7 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
                     position: 'relative'
                 }}
             >
-                {loadingStates[type] ? (
+                {loadingStates[operate] ? (
                     <CircularProgress
                         size={20}
                         sx={{
@@ -267,9 +273,9 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
                 variant="caption"
                 sx={{
                     fontSize: '10px',
-                    color: loadingStates[type] ? '#CCCCCC' : '#666666',
+                    color: loadingStates[operate] ? '#CCCCCC' : '#666666',
                     transition: 'all 0.3s ease',
-                    opacity: loadingStates[type] ? 0.6 : 1
+                    opacity: loadingStates[operate] ? 0.6 : 1
                 }}
             >
                 {label}

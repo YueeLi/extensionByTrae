@@ -51,7 +51,8 @@ const ChatPanel: React.FC = () => {
         const handleSessionChange = async () => {
             try {
                 const response = await chrome.runtime.sendMessage({
-                    type: 'getCurrentSession'
+                    type: 'session',
+                    operate: 'getCurrentSession'
                 });
 
                 if (response.error) {
@@ -89,7 +90,8 @@ const ChatPanel: React.FC = () => {
             if (!currentSession?.id) return;
 
             const response = await chrome.runtime.sendMessage({
-                type: 'getSessionMessages',
+                type: 'session',
+                operate: 'getSessionMessages',
                 sessionId: currentSession.id
             });
 
@@ -149,7 +151,8 @@ const ChatPanel: React.FC = () => {
     const handleCreateSession = async () => {
         try {
             const response = await chrome.runtime.sendMessage({
-                type: 'createSession'
+                type: 'session',
+                operate: 'createSession'
             });
 
             console.log('handleCreateSession 创建新会话:', response)
@@ -251,7 +254,8 @@ const ChatPanel: React.FC = () => {
         if (!currentSession?.id) {
             try {
                 const response = await chrome.runtime.sendMessage({
-                    type: 'createSession'
+                    type: 'session',
+                    operate: 'createSession'
                 });
 
                 if (!response || response.error) {
@@ -345,6 +349,7 @@ const ChatPanel: React.FC = () => {
 
                 const response = await chrome.runtime.sendMessage({
                     type: 'chat',
+                    operate: 'single',
                     content: newContent
                 });
 

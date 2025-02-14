@@ -3,6 +3,7 @@ import { HandleExtensionRequest, Message, LLMRequestMessage } from '../types/typ
 import { MessageFactory } from './message';
 import { SessionManager } from './session';
 import { APIManager } from './api';
+import { MessageContent } from '../types/types';
 
 // 配置侧边栏行为，使点击扩展图标时打开侧边栏，不可删除！！！
 chrome.sidePanel
@@ -16,7 +17,6 @@ class RetryManager {
 
     static async withRetry<T>(operation: () => Promise<T>, errorHandler?: (error: Error) => void): Promise<T> {
         let retryCount = 0;
-
         while (retryCount < this.MAX_RETRIES) {
             try {
                 return await operation();
@@ -34,7 +34,6 @@ class RetryManager {
                 );
             }
         }
-
         throw new Error('请求失败，已达到最大重试次数');
     }
 }
@@ -46,13 +45,12 @@ class MessageCenter {
         analyze: (text: string) => `请分析以下内容，包括主要观点、论据支持、逻辑结构等方面：\n\n${text}`,
         explain: (text: string) => `请详细解释以下内容，使用通俗易懂的语言，并举例说明：\n\n${text}`,
         summarize: (text: string) => `请总结以下内容的要点，突出关键信息：\n\n${text}`
-    };
-
-    static validateMessage(message: any): message is HandleExtensionRequest {
-        return message && typeof message.type === 'string' && Array.isArray(message.content);
     }
 
-    static async handleChatRequest(userMessage: Message): Promise<string> {
+    // 处理聊天请求, 并返回处理结果.涉及历史消息及session操作.
+    static async handleChatRequest(operate: string, content: MessageContent[]): Promise<string> {
+
+        const userMessage = MessageFactory.createUserMessage(content || []);
         const newMsg: LLMRequestMessage = {
             role: 'user',
             content: userMessage.content
@@ -77,7 +75,7 @@ class MessageCenter {
             }
         }
         reqMessages.push(newMsg);
-
+        console.log('chat request to LLM:', reqMessages);
         return RetryManager.withRetry(async () => {
             const response = await APIManager.callAzureOpenAI(reqMessages);
             const assistantMessage = MessageFactory.createAssistantMessage([{
@@ -90,34 +88,34 @@ class MessageCenter {
         });
     }
 
-    static async handleRequest(message: HandleExtensionRequest): Promise<string> {
-        // 区分聊天类型和其他类型的消息
-        if (message.type === 'chat') {
-            // 直接处理聊天消息，支持多媒体内容
-            const userMessage = MessageFactory.createUserMessage(message.content);
-            return this.handleChatRequest(userMessage);
-        }
-
-        // 处理其他类型的消息（翻译、分析、解释、总结等）
-        const textContent = message.content.find(item => item.type === 'text')?.text || '';
-        const template = this.MESSAGE_TEMPLATES[message.type as keyof typeof this.MESSAGE_TEMPLATES];
-
+    // 处理content相关请求, 如翻译、分析、解释、总结等, 并返回处理结果.不涉及历史消息及session操作.
+    static async handleContentRequest(operate: string, content: MessageContent[]): Promise<string> {
+        const textContent = content?.find(item => item.type === 'text')?.text || '';
+        const template = this.MESSAGE_TEMPLATES[operate as keyof typeof this.MESSAGE_TEMPLATES];
         if (!textContent) {
             throw new Error('无效的文本内容');
         }
-
         const userMessage = MessageFactory.createUserMessage([{ type: 'text' as const, text: template ? template(textContent) : textContent }]);
-        return this.handleChatRequest(userMessage);
+        const newMsg: LLMRequestMessage = {
+            role: 'user',
+            content: userMessage.content
+        };
+
+        const reqMessages: LLMRequestMessage[] = newMsg ? [newMsg] : [];
+        return RetryManager.withRetry(async () => {
+            const response = await APIManager.callAzureOpenAI(reqMessages);
+            return response;
+        });
     }
 }
 
 // 统一消息监听器
-chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
-    if (MessageCenter.validateMessage(message)) {
-        // 处理聊天相关请求
+chrome.runtime.onMessage.addListener((message: HandleExtensionRequest, _sender, sendResponse) => {
+    // 处理聊天请求
+    if (message.type === 'chat') {
         (async () => {
             try {
-                const response = await MessageCenter.handleRequest(message);
+                const response = await MessageCenter.handleChatRequest(message.operate, message.content ?? []);
                 sendResponse({ content: response });
             } catch (error) {
                 console.error('处理消息时出错:', error);
@@ -129,11 +127,25 @@ chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
         return true;
     }
 
-    // 处理会话相关请求
-    if (message.type && typeof message.type === 'string') {
+    // 处理content相关请求
+    if (message.type === 'content') {
         (async () => {
             try {
-                const result = await SessionManager.handleSessionRequest(message.type, message);
+                const result = await MessageCenter.handleContentRequest(message.operate, message.content ?? []);
+                sendResponse({ content: result });
+            } catch (error) {
+                console.error('Content operation error:', error);
+                sendResponse({ error: error instanceof Error ? error.message : '操作失败' });
+            }
+        })();
+        return true;
+    }
+
+    // 处理会话相关请求
+    if (message.type === 'session') {
+        (async () => {
+            try {
+                const result = await SessionManager.handleSessionRequest(message.operate, message.session ?? null);
                 console.log('Sending session response:', result);
                 sendResponse(result);
             } catch (error) {
@@ -143,6 +155,5 @@ chrome.runtime.onMessage.addListener((message: any, _sender, sendResponse) => {
         })();
         return true;
     }
-
     return false;
 });

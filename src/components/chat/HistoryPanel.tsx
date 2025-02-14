@@ -45,7 +45,8 @@ const HistoryPanel: React.FC = () => {
     const loadSessions = async () => {
         try {
             const response = await chrome.runtime.sendMessage({
-                type: 'getSessions'
+                type: 'session',
+                operate: 'getSessions'
             });
 
             if (response.error) {
@@ -84,7 +85,8 @@ const HistoryPanel: React.FC = () => {
 
         try {
             await chrome.runtime.sendMessage({
-                type: 'updateSessionTitle',
+                type: 'session',
+                operate: 'updateSessionTitle',
                 sessionId,
                 title: editingTitle.trim()
             });
@@ -101,7 +103,8 @@ const HistoryPanel: React.FC = () => {
         event.stopPropagation();
         try {
             await chrome.runtime.sendMessage({
-                type: 'toggleSessionPin',
+                type: 'session',
+                operate: 'toggleSessionPin',
                 sessionId
             });
             loadSessions(); // 重新加载会话列表
@@ -113,7 +116,8 @@ const HistoryPanel: React.FC = () => {
     const handleSessionClick = async (sessionId: string) => {
         try {
             const response = await chrome.runtime.sendMessage({
-                type: 'setCurrentSession',
+                type: 'session',
+                operate: 'setCurrentSession',
                 sessionId
             });
 
@@ -136,7 +140,8 @@ const HistoryPanel: React.FC = () => {
     const handleCreateSession = async () => {
         try {
             const response = await chrome.runtime.sendMessage({
-                type: 'createSession'
+                type: 'session',
+                operate: 'createSession'
             });
 
             if (response.error) {
@@ -153,7 +158,8 @@ const HistoryPanel: React.FC = () => {
         event.stopPropagation();
         try {
             await chrome.runtime.sendMessage({
-                type: 'deleteSession',
+                type: 'session',
+                operate: 'deleteSession',
                 sessionId
             });
             loadSessions(); // 重新加载会话列表

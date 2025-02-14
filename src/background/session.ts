@@ -1,4 +1,4 @@
-import { Message, Session } from '../types/types';
+import { Message, MessageContent, Session } from '../types/types';
 import { SessionError, SessionNotFoundError, SessionLimitExceededError, InvalidSessionDataError, StorageOperationError } from '../types/errors';
 
 export class SessionManager {
@@ -7,32 +7,38 @@ export class SessionManager {
     private static readonly STORAGE_KEY = 'sessions';
     private static readonly MAX_SESSIONS = 100;
 
-    static async handleSessionRequest(type: string, data?: any): Promise<any> {
+    // sess参数非必填
+    static async handleSessionRequest(operate: string, sess: Session | null): Promise<any> {
         try {
-            switch (type) {
+            // 不需要 sess 参数的操作
+            switch (operate) {
                 case 'getSessions':
                     return { sessions: await this.getSessions() };
-                case 'setCurrentSession':
-                    if (!data?.sessionId) throw new InvalidSessionDataError('会话ID不能为空');
-                    this.currentSession = await this.getSession(data.sessionId);
-                    return { success: true };
-                case 'createSession':
-                    const session = await this.createSession();
-                    return { session };
-                case 'deleteSession':
-                    if (!data?.sessionId) throw new InvalidSessionDataError('会话ID不能为空');
-                    return { success: await this.deleteSession(data.sessionId) };
-                case 'getSessionMessages':
-                    if (!data?.sessionId) throw new InvalidSessionDataError('会话ID不能为空');
-                    return { messages: await this.getSessionMessages(data.sessionId) };
                 case 'getCurrentSession':
                     return { session: this.getCurrentSession() };
-                case 'updateSessionTitle':
-                    if (!data?.sessionId || !data?.title) throw new InvalidSessionDataError('会话ID和标题不能为空');
-                    return { session: await this.updateSessionTitle(data.sessionId, data.title) };
+                case 'createSession':
+                    return { session: await this.createSession() };
+            }
+
+            // 需要 sess 参数的操作
+            if (!sess?.id) {
+                throw new InvalidSessionDataError('会话ID不能为空');
+            }
+            switch (operate) {
+                case 'setCurrentSession':
+                    this.currentSession = await this.getSession(sess.id);
+                    return { success: true };
+                case 'deleteSession':
+                    return { success: await this.deleteSession(sess.id) };
+                case 'getSessionMessages':
+                    return { messages: await this.getSessionMessages(sess.id) };
                 case 'toggleSessionPin':
-                    if (!data?.sessionId) throw new InvalidSessionDataError('会话ID不能为空');
-                    return { session: await this.toggleSessionPin(data.sessionId) };
+                    return { session: await this.toggleSessionPin(sess.id) };
+                case 'updateSessionTitle':
+                    if (!sess.title) {
+                        throw new InvalidSessionDataError('会话标题不能为空');
+                    }
+                    return { session: await this.updateSessionTitle(sess.id, sess.title) };
                 default:
                     throw new Error('未知的会话操作类型');
             }

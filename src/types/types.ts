@@ -104,12 +104,23 @@ export interface LLMRequestFullBody {
 }
 
 // 插件请求类型
-export type ExtensionRequestType = 'chat' | 'translate' | 'summarize' | 'analyze' | 'explain';
+export type ExtensionRequestType = 'chat' | 'session' | 'content';
+
+// content操作类型
+export type ContentOperate = 'translate' | 'summarize' | 'analyze' | 'explain';
+
+// session操作类型
+export type SessionOperate = 'getSessions' | 'setCurrentSession' | 'createSession' | 'deleteSession' | 'getSessionMessages' | 'getCurrentSession' | 'updateSessionTitle' | 'toggleSessionPin';
+
+// chat操作类型
+export type ChatOperate = 'single' | 'multi';
 
 // 插件请求内容
 export interface HandleExtensionRequest {
-    type: ExtensionRequestType;
-    content: MessageContent[];
+    type: ExtensionRequestType
+    operate: ContentOperate | SessionOperate | ChatOperate;
+    content?: MessageContent[] | null;
+    session?: Session | null;
 }
 
 // 流式响应接口

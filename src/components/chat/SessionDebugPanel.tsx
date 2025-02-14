@@ -16,7 +16,8 @@ const SessionDebugPanel: React.FC<SessionDebugPanelProps> = ({ visible }) => {
         try {
             // 获取所有会话
             const response = await chrome.runtime.sendMessage({
-                type: 'getSessions'
+                type: 'session',
+                operate: 'getSessions'
             });
 
             if (response.error) {
