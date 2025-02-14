@@ -13,7 +13,7 @@ import TranslateIcon from '@mui/icons-material/Translate';
 import BugReportIcon from '@mui/icons-material/BugReport';
 import SessionDebugPanel from '../chat/SessionDebugPanel';
 
-const DRAWER_WIDTH = 110;
+const DRAWER_WIDTH = 64;
 
 const HomePage: React.FC = () => {
     const [currentPage, setCurrentPage] = React.useState<'chat' | 'settings' | 'debug' | 'history'>('history');
@@ -31,33 +31,13 @@ const HomePage: React.FC = () => {
     }, []);
 
     const menuItems = [
-        {
-            group: 'Ai对话',
-            items: [
-                { id: 'history', icon: <HistoryIcon />, text: '历史会话' },
-                { id: 'chat', icon: <ChatIcon />, text: '开始对话' }
-            ]
-        },
-        {
-            group: '网页工具',
-            items: [
-                { id: 'image', icon: <ImageIcon />, text: '图像助手' },
-                { id: 'translate', icon: <TranslateIcon />, text: '智能翻译' }
-            ]
-        },
-        {
-            group: '开发工具',
-            items: [
-                { id: 'vms', icon: <TerminalIcon />, text: 'vm管理' }
-            ]
-        },
-        {
-            group: '设置管理',
-            items: [
-                { id: 'settings', icon: <SettingsIcon />, text: 'AI模型' },
-                { id: 'debug', icon: <BugReportIcon />, text: '插件后台' }
-            ]
-        }
+        { id: 'history', icon: <HistoryIcon />, text: '历史会话' },
+        { id: 'chat', icon: <ChatIcon />, text: '开始对话' },
+        { id: 'image', icon: <ImageIcon />, text: '图像助手' },
+        { id: 'translate', icon: <TranslateIcon />, text: '智能翻译' },
+        { id: 'vms', icon: <TerminalIcon />, text: 'vm管理' },
+        { id: 'settings', icon: <SettingsIcon />, text: 'AI模型' },
+        { id: 'debug', icon: <BugReportIcon />, text: '插件后台' }
     ];
 
     return (
@@ -71,130 +51,123 @@ const HomePage: React.FC = () => {
                     '& .MuiDrawer-paper': {
                         width: DRAWER_WIDTH,
                         boxSizing: 'border-box',
-                        bgcolor: '#FFFFFF',
+                        bgcolor: '#F0F7FF',
                         borderLeft: '1px solid rgba(0, 0, 0, 0.08)',
                         boxShadow: '-4px 0 8px rgba(0, 0, 0, 0.05)',
                         overflowX: 'hidden',
-                        background: 'linear-gradient(180deg, #FFFFFF 0%, #F8F9FA 100%)'
+                        background: 'linear-gradient(180deg, #F0F7FF 0%, #E6F0FF 100%)'
                     }
                 }}
             >
                 <Box sx={{
-                    p: 1.5,
-                    borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+                    p: 3,
+                    height: '64px',
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between'
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+                    background: 'linear-gradient(135deg, #FFFFFF 0%, #F8F9FA 100%)'
                 }}>
                     <Typography
                         variant="h6"
                         sx={{
                             fontWeight: 600,
-                            fontSize: '1rem',
+                            fontSize: '1.25rem',
                             background: 'linear-gradient(135deg, #1A7FE9 0%, #1565C0 100%)',
                             WebkitBackgroundClip: 'text',
                             WebkitTextFillColor: 'transparent',
                             letterSpacing: '-0.01em'
                         }}
                     >
-                        工具栏
+                        Tools
                     </Typography>
                 </Box>
                 <List sx={{ pt: 1.5 }}>
-                    {menuItems.map((group, groupIndex) => (
-                        <React.Fragment key={group.group}>
-                            {groupIndex > 0 && (
-                                <Divider sx={{ my: 2.5 }} />
-                            )}
-                            <Typography
-                                variant="caption"
+                    {menuItems.map((item) => (
+                        <ListItem
+                            button
+                            key={item.id}
+                            onClick={() => {
+                                if (item.id === 'chat') {
+                                    setCurrentPage('chat');
+                                    window.dispatchEvent(new CustomEvent('newChat'));
+                                } else {
+                                    setCurrentPage(item.id as any);
+                                }
+                            }}
+                            selected={currentPage === item.id}
+                            sx={{
+                                mb: 0.5,
+                                mx: 0.5,
+                                borderRadius: '8px',
+                                minHeight: 40,
+                                py: 0.8,
+                                px: 1.5,
+                                whiteSpace: 'nowrap',
+                                overflow: 'hidden',
+                                transition: 'all 0.3s ease',
+                                '&.Mui-selected': {
+                                    background: 'linear-gradient(135deg, rgba(26, 127, 233, 0.08) 0%, rgba(26, 127, 233, 0.12) 100%)',
+                                    boxShadow: '0 2px 8px rgba(26, 127, 233, 0.08)',
+                                    '&:hover': {
+                                        background: 'linear-gradient(135deg, rgba(26, 127, 233, 0.12) 0%, rgba(26, 127, 233, 0.16) 100%)',
+                                        boxShadow: '0 4px 12px rgba(26, 127, 233, 0.12)'
+                                    },
+                                    '& .MuiListItemIcon-root': {
+                                        color: '#1A7FE9',
+                                        background: 'linear-gradient(135deg, rgba(26, 127, 233, 0.08) 0%, rgba(26, 127, 233, 0.12) 100%)',
+                                        transform: 'scale(1.05)',
+                                        boxShadow: '0 2px 8px rgba(26, 127, 233, 0.12)'
+                                    }
+                                },
+                                '&:hover': {
+                                    background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.02) 0%, rgba(0, 0, 0, 0.04) 100%)',
+                                    '& .tooltip': {
+                                        visibility: 'visible',
+                                        opacity: 1,
+                                        transform: 'translateY(-50%)'
+                                    }
+                                }
+                            }}
+                        >
+                            <ListItemIcon sx={{
+                                minWidth: 36,
+                                width: 36,
+                                height: 36,
+                                borderRadius: '50%',
+                                color: '#666666',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                background: 'rgba(0, 0, 0, 0.04)',
+                                mr: 1.5,
+                                transition: 'all 0.3s ease',
+                                '& .MuiSvgIcon-root': {
+                                    fontSize: 20
+                                }
+                            }}>
+                                {item.icon}
+                            </ListItemIcon>
+                            <Box
+                                className="tooltip"
                                 sx={{
-                                    px: 2,
-                                    py: 0.5,
-                                    color: '#666666',
-                                    display: 'block',
-                                    fontSize: '0.7rem',
-                                    fontWeight: 800,
-                                    textTransform: 'uppercase',
-                                    letterSpacing: '0.5px',
-                                    fontFamily: '"SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+                                    position: 'fixed',
+                                    left: '64px',
+                                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                                    color: '#fff',
+                                    padding: '6px 12px',
+                                    borderRadius: '4px',
+                                    fontSize: '0.8rem',
+                                    visibility: 'hidden',
+                                    opacity: 0,
+                                    transition: 'all 0.2s ease',
+                                    zIndex: 1400,
+                                    whiteSpace: 'nowrap'
                                 }}
                             >
-                                {group.group}
-                            </Typography>
-                            {group.items.map((item) => (
-                                <ListItem
-                                    button
-                                    key={item.id}
-                                    onClick={() => {
-                                        if (item.id === 'chat') {
-                                            setCurrentPage('chat');
-                                            // 触发新建会话事件
-                                            window.dispatchEvent(new CustomEvent('newChat'));
-                                        } else {
-                                            setCurrentPage(item.id as any);
-                                        }
-                                    }}
-                                    selected={currentPage === item.id}
-                                    sx={{
-                                        mb: 0.5,
-                                        mx: 0.5,
-                                        borderRadius: '6px',
-                                        minHeight: 36,
-                                        py: 0.8,
-                                        px: 1.5,
-                                        whiteSpace: 'nowrap',
-                                        overflow: 'hidden',
-                                        transition: 'all 0.3s ease',
-                                        '&.Mui-selected': {
-                                            background: 'linear-gradient(135deg, rgba(26, 127, 233, 0.08) 0%, rgba(26, 127, 233, 0.12) 100%)',
-                                            '&:hover': {
-                                                background: 'linear-gradient(135deg, rgba(26, 127, 233, 0.12) 0%, rgba(26, 127, 233, 0.16) 100%)'
-                                            },
-                                            '& .MuiListItemIcon-root': {
-                                                color: '#1A7FE9'
-                                            },
-                                            '& .MuiListItemText-primary': {
-                                                color: '#1A7FE9',
-                                                fontWeight: 600
-                                            }
-                                        },
-                                        '&:hover': {
-                                            background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.02) 0%, rgba(0, 0, 0, 0.04) 100%)'
-                                        }
-                                    }}
-                                >
-                                    <ListItemIcon sx={{
-                                        minWidth: 16,
-                                        width: 16,
-                                        color: '#666666',
-                                        justifyContent: 'center',
-                                        '& .MuiSvgIcon-root': {
-                                            fontSize: 18
-                                        },
-                                        mr: 1.5
-                                    }}>
-                                        {item.icon}
-                                    </ListItemIcon>
-                                    <ListItemText
-                                        primary={item.text}
-                                        sx={{
-                                            m: 0,
-                                            '& .MuiTypography-root': {
-                                                textOverflow: 'ellipsis',
-                                                overflow: 'hidden',
-                                                whiteSpace: 'nowrap',
-                                                fontSize: '0.8rem',
-                                                fontWeight: 400,
-                                                letterSpacing: '0.02em',
-                                                color: '#333333',
-                                                fontFamily: '"SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-                                            }
-                                        }}
-                                    />
-                                </ListItem>
-                            ))}
-                        </React.Fragment>
+                                {item.text}
+                            </Box>
+                        </ListItem>
                     ))}
                 </List>
             </Drawer>
