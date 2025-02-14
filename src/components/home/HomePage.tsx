@@ -62,11 +62,11 @@ const HomePage: React.FC = () => {
                 <Box sx={{
                     p: 3,
                     height: '64px',
-                    display: 'flex',
+                    display: 'grid',
                     flexDirection: 'column',
                     justifyContent: 'center',
                     borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
-                    background: 'linear-gradient(135deg, #FFFFFF 0%, #F8F9FA 100%)'
+                    background: 'linear-gradient(rgb(240, 247, 255) 0%, rgb(230, 240, 255) 100%)',
                 }}>
                     <Typography
                         variant="h6"
