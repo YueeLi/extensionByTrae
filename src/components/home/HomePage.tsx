@@ -100,7 +100,7 @@ const HomePage: React.FC = () => {
                                 mb: 0.5,
                                 mx: 0.5,
                                 borderRadius: '8px',
-                                minHeight: 40,
+                                minHeight: 60,
                                 py: 0.8,
                                 px: 1.5,
                                 whiteSpace: 'nowrap',
