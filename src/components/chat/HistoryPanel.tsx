@@ -62,7 +62,6 @@ const HistoryPanel: React.FC = () => {
                 isPinned: session.isPinned || false
             }));
 
-            // 对会话进行排序：先按置顶状态排序，再按时间戳排序
             const sortedSessions = formattedSessions.sort((a: ChatHistory, b: ChatHistory) => {
                 if (a.isPinned && !b.isPinned) return -1;
                 if (!a.isPinned && b.isPinned) return 1;
@@ -87,11 +86,13 @@ const HistoryPanel: React.FC = () => {
             await chrome.runtime.sendMessage({
                 type: 'session',
                 operate: 'updateSessionTitle',
-                sessionId,
-                title: editingTitle.trim()
+                session: {
+                    id: sessionId,
+                    title: editingTitle.trim()
+                }
             });
 
-            loadSessions(); // 重新加载会话列表
+            loadSessions();
             setEditingSessionId(null);
             setEditingTitle('');
         } catch (err) {
@@ -105,9 +106,9 @@ const HistoryPanel: React.FC = () => {
             await chrome.runtime.sendMessage({
                 type: 'session',
                 operate: 'toggleSessionPin',
-                sessionId
+                session: { id: sessionId }
             });
-            loadSessions(); // 重新加载会话列表
+            loadSessions();
         } catch (err) {
             setError('置顶操作失败');
         }
@@ -118,14 +119,13 @@ const HistoryPanel: React.FC = () => {
             const response = await chrome.runtime.sendMessage({
                 type: 'session',
                 operate: 'setCurrentSession',
-                sessionId
+                session: { id: sessionId }
             });
 
             if (response.error) {
                 throw new Error(response.error);
             }
 
-            // 确保会话切换成功后再导航
             if (response.success) {
                 navigate('chat');
             } else {
@@ -160,9 +160,9 @@ const HistoryPanel: React.FC = () => {
             await chrome.runtime.sendMessage({
                 type: 'session',
                 operate: 'deleteSession',
-                sessionId
+                session: { id: sessionId }
             });
-            loadSessions(); // 重新加载会话列表
+            loadSessions();
         } catch (err) {
             setError('删除会话失败');
         }

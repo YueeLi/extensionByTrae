@@ -92,7 +92,9 @@ const ChatPanel: React.FC = () => {
             const response = await chrome.runtime.sendMessage({
                 type: 'session',
                 operate: 'getSessionMessages',
-                sessionId: currentSession.id
+                session: {
+                    id: currentSession.id
+                }
             });
 
             if (response.error) {
