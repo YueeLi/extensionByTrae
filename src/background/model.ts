@@ -1,7 +1,7 @@
 import { LLMRequestMessage, ModelRequestConfig, StreamChunkResponse } from '../types/types';
 import { SettingsManager } from './settings';
 
-export class APIManager {
+export class AIModelManager {
     private static readonly MODEL_CONFIGS: Record<string, ModelRequestConfig> = {
         'gpt-4o': {
             buildUrl: (model) => `${model.endpoint}/openai/deployments/${model.deploymentName}/chat/completions?api-version=${model.apiVersion}`,
@@ -135,7 +135,7 @@ export class APIManager {
         throw new Error('超过最大重试次数');
     }
 
-    static async callAzureOpenAI(info: LLMRequestMessage[]): Promise<string> {
+    static async callAzureAI(info: LLMRequestMessage[]): Promise<string> {
         console.log('request LLM with ChatRequest:', info)
 
         if (!info?.length) {

@@ -1,8 +1,8 @@
-import { HandleExtensionRequest, Message, LLMRequestMessage } from '../types/types';
+import { HandleExtensionRequest, LLMRequestMessage } from '../types/types';
 
 import { MessageFactory } from './message';
 import { SessionManager } from './session';
-import { APIManager } from './api';
+import { AIModelManager } from './model';
 import { MessageContent } from '../types/types';
 
 // 配置侧边栏行为，使点击扩展图标时打开侧边栏，不可删除！！！
@@ -77,7 +77,7 @@ class MessageCenter {
         reqMessages.push(newMsg);
         console.log('chat request to LLM:', reqMessages);
         return RetryManager.withRetry(async () => {
-            const response = await APIManager.callAzureOpenAI(reqMessages);
+            const response = await AIModelManager.callAzureAI(reqMessages);
             const assistantMessage = MessageFactory.createAssistantMessage([{
                 type: 'text',
                 text: response
@@ -103,7 +103,7 @@ class MessageCenter {
 
         const reqMessages: LLMRequestMessage[] = newMsg ? [newMsg] : [];
         return RetryManager.withRetry(async () => {
-            const response = await APIManager.callAzureOpenAI(reqMessages);
+            const response = await AIModelManager.callAzureAI(reqMessages);
             return response;
         });
     }

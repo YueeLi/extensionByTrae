@@ -1,4 +1,4 @@
-import { Message, MessageContent, Session } from '../types/types';
+import { Message, Session } from '../types/types';
 import { SessionError, SessionNotFoundError, SessionLimitExceededError, InvalidSessionDataError, StorageOperationError } from '../types/errors';
 
 export class SessionManager {
