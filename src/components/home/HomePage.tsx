@@ -13,7 +13,7 @@ import TranslateIcon from '@mui/icons-material/Translate';
 import BugReportIcon from '@mui/icons-material/BugReport';
 import SessionDebugPanel from '../chat/SessionDebugPanel';
 
-const DRAWER_WIDTH = 64;
+const DRAWER_WIDTH = 56;
 
 const HomePage: React.FC = () => {
     const [currentPage, setCurrentPage] = React.useState<'chat' | 'settings' | 'debug' | 'history'>('history');
@@ -60,8 +60,8 @@ const HomePage: React.FC = () => {
                 }}
             >
                 <Box sx={{
-                    p: 3,
-                    height: '64px',
+                    p: 2,
+                    height: '56px',
                     display: 'grid',
                     flexDirection: 'column',
                     justifyContent: 'center',
@@ -100,9 +100,9 @@ const HomePage: React.FC = () => {
                                 mb: 0.5,
                                 mx: 0.5,
                                 borderRadius: '8px',
-                                minHeight: 60,
-                                py: 0.8,
-                                px: 1.5,
+                                minHeight: 44,
+                                py: 0.6,
+                                px: 1.2,
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
                                 transition: 'all 0.3s ease',
@@ -131,9 +131,9 @@ const HomePage: React.FC = () => {
                             }}
                         >
                             <ListItemIcon sx={{
-                                minWidth: 36,
-                                width: 36,
-                                height: 36,
+                                minWidth: 30,
+                                width: 30,
+                                height: 30,
                                 borderRadius: '50%',
                                 color: '#666666',
                                 display: 'flex',
@@ -143,7 +143,7 @@ const HomePage: React.FC = () => {
                                 mr: 1.5,
                                 transition: 'all 0.3s ease',
                                 '& .MuiSvgIcon-root': {
-                                    fontSize: 20
+                                    fontSize: 18
                                 }
                             }}>
                                 {item.icon}
@@ -152,7 +152,7 @@ const HomePage: React.FC = () => {
                                 className="tooltip"
                                 sx={{
                                     position: 'fixed',
-                                    left: '64px',
+                                    left: '56px',
                                     backgroundColor: 'rgba(0, 0, 0, 0.8)',
                                     color: '#fff',
                                     padding: '6px 12px',
