@@ -221,14 +221,6 @@ const HistoryPanel: React.FC = () => {
                 }}>
                     历史对话
                 </Typography>
-                <Typography variant="body2" sx={{
-                    color: '#666666',
-                    mt: 1,
-                    fontSize: '0.875rem',
-                    opacity: 0.8
-                }}>
-                    查看和管理您的历史对话记录
-                </Typography>
             </Box>
 
             <List

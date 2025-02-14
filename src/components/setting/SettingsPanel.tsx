@@ -334,14 +334,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
                 }}>
                     Azure LLM 设置
                 </Typography>
-                <Typography variant="body2" sx={{
-                    color: '#666666',
-                    mt: 1,
-                    fontSize: '0.875rem',
-                    opacity: 0.8
-                }}>
-                    配置您的Azure OpenAI模型参数，支持多个模型配置和灵活的API调用方式
-                </Typography>
+
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3, p: 3 }}>
                 <Box>

@@ -404,7 +404,7 @@ const ChatPanel: React.FC = () => {
                 minWidth: '320px',
                 bgcolor: '#FFFFFF',
                 boxShadow: '0 4px 20px rgba(0, 0, 0, 0.08)',
-                borderRadius: '16px',
+
                 overflow: 'hidden'
             }}>
             <Box sx={{
