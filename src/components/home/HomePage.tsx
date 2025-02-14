@@ -72,7 +72,7 @@ const HomePage: React.FC = () => {
                         variant="h6"
                         sx={{
                             fontWeight: 600,
-                            fontSize: '1.25rem',
+                            fontSize: '0.9rem',
                             background: 'linear-gradient(135deg, #1A7FE9 0%, #1565C0 100%)',
                             WebkitBackgroundClip: 'text',
                             WebkitTextFillColor: 'transparent',
