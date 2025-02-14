@@ -219,7 +219,7 @@ const HistoryPanel: React.FC = () => {
                     fontSize: '1.25rem',
                     letterSpacing: '-0.01em'
                 }}>
-                    历史对话
+                    历史会话
                 </Typography>
             </Box>
 

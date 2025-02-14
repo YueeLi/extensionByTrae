@@ -34,7 +34,7 @@ const HomePage: React.FC = () => {
         {
             group: 'Ai对话',
             items: [
-                { id: 'history', icon: <HistoryIcon />, text: '历史对话' },
+                { id: 'history', icon: <HistoryIcon />, text: '历史会话' },
                 { id: 'chat', icon: <ChatIcon />, text: '开始对话' }
             ]
         },
