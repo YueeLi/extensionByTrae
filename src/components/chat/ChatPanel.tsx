@@ -457,18 +457,38 @@ const ChatPanel: React.FC = () => {
                     top: '50%',
                     left: '50%',
                     transform: 'translate(-50%, -50%)',
-                    zIndex: 1000,
-                    bgcolor: 'rgba(255, 255, 255, 0.95)',
-                    padding: 4,
-                    borderRadius: 3,
-                    boxShadow: '0 6px 20px rgba(0, 0, 0, 0.15)',
+                    zIndex: 9999,
+                    bgcolor: 'rgba(255, 255, 255, 0.92)',
+                    backdropFilter: 'blur(4px)',
+                    padding: 2,
+                    borderRadius: 1.5,
+                    boxShadow: '0 4px 16px rgba(0, 0, 0, 0.06)',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    gap: 2
+                    gap: 1.5,
+                    minWidth: '160px',
+                    animation: 'fadeIn 0.3s ease-in-out'
                 }}>
-                    <CircularProgress size={50} />
-                    <Typography variant="body1" color="textPrimary">
+                    <CircularProgress size={32} thickness={3} sx={{ color: '#1976d2' }} />
+                    <Typography 
+                        variant="body2" 
+                        sx={{ 
+                            color: '#333333',
+                            fontSize: '14px',
+                            fontWeight: 400,
+                            letterSpacing: '0.2px',
+                            '@keyframes bounce': {
+                                '0%, 100%': {
+                                    transform: 'translateY(0)'
+                                },
+                                '50%': {
+                                    transform: 'translateY(-5px)'
+                                }
+                            },
+                            animation: 'bounce 1.2s ease-in-out infinite'
+                        }}
+                    >
                         模型思考中...
                     </Typography>
                 </Box>
@@ -626,7 +646,7 @@ const ChatPanel: React.FC = () => {
                                 }
                             }}
                         >
-                            导出对话
+                            导出
                         </Button>
                         <Button
                             variant="text"
@@ -645,7 +665,7 @@ const ChatPanel: React.FC = () => {
                                 }
                             }}
                         >
-                            提示词模板
+                            提示词
                         </Button>
                         <Button
                             variant="text"
@@ -664,7 +684,7 @@ const ChatPanel: React.FC = () => {
                                 }
                             }}
                         >
-                            语音模式
+                            语音
                         </Button>
                     </Box>
                     <Box>
@@ -685,7 +705,7 @@ const ChatPanel: React.FC = () => {
                                 }
                             }}
                         >
-                            清空对话
+                            清空
                         </Button>
                     </Box>
                 </Box>
