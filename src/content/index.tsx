@@ -6,12 +6,13 @@ import {
     createTheme,
     Box,
     IconButton,
-    Tooltip,
+    Divider,
     Snackbar,
     Alert,
     Typography,
     CircularProgress
 } from '@mui/material';
+import CloseIcon from '@mui/icons-material/Close';
 import MarkdownRenderer from '@/components/commen/MarkdownRenderer';
 import TranslateIcon from '@mui/icons-material/Translate';
 import SummarizeIcon from '@mui/icons-material/Summarize';
@@ -135,6 +136,9 @@ const ResultPanel: React.FC<ResultPanelProps> = ({ result, position, onClose }) 
 
 // 悬浮工具栏组件：提供文本翻译、总结和分析功能
 const MAX_TEXT_LENGTH = 10000; // 设置最大文本长度限制
+
+// 禁用时长固定为5分钟
+const DISABLE_DURATION = 5 * 60 * 1000;
 
 const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) => {
     const [loadingStates, setLoadingStates] = React.useState<Record<string, boolean>>({});
@@ -283,6 +287,13 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
         </Box>
     );
 
+    // 处理工具栏禁用
+    const handleDisableToolbar = () => {
+        const disableUntil = Date.now() + DISABLE_DURATION;
+        localStorage.setItem('toolbarDisabledUntil', disableUntil.toString());
+        onClose();
+    };
+
     return (
         <ThemeProvider theme={theme}>
             <Snackbar
@@ -301,12 +312,13 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
                     left: position.x,
                     top: position.y - 45,
                     display: 'flex',
+                    flexDirection: 'column',
                     gap: 1.5,
                     padding: '12px',
                     bgcolor: 'rgba(255, 255, 255, 0.92)',
                     borderRadius: '16px',
                     boxShadow: '0 8px 32px rgba(0, 0, 0, 0.12)',
-                    zIndex: 2147483647,
+                    zIndex: 2147483646,
                     backdropFilter: 'blur(20px)',
                     border: '1px solid rgba(26, 127, 233, 0.1)',
                     transform: 'translateY(0)',
@@ -316,13 +328,13 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
                         transform: 'translateY(-4px)'
                     },
                     '& .MuiIconButton-root': {
-                        width: 48,
-                        height: 48,
+                        width: 32,
+                        height: 32,
                         borderRadius: '12px',
                         backgroundColor: '#F8F9FA',
                         color: '#1A1A1A',
                         padding: '8px',
-                        minWidth: '48px',
+                        minWidth: '32px',
                         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                         '&:hover': {
                             backgroundColor: '#1A7FE9',
@@ -347,10 +359,52 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
                     }
                 }}
             >
-                {renderActionButton('translate', <TranslateIcon />, '翻译')}
-                {renderActionButton('summarize', <SummarizeIcon />, '总结')}
-                {renderActionButton('analyze', <AnalyticsIcon />, '分析')}
-                {renderActionButton('explain', <ExplainIcon />, '解释')}
+                <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+                    {renderActionButton('translate', <TranslateIcon />, '翻译')}
+                    {renderActionButton('summarize', <SummarizeIcon />, '总结')}
+                    {renderActionButton('analyze', <AnalyticsIcon />, '分析')}
+                    {renderActionButton('explain', <ExplainIcon />, '解释')}
+                    <Divider orientation="vertical" sx={{
+                        height: '40px',
+                        margin: '0 8px',
+                        borderColor: 'rgba(0, 0, 0, 0.08)'
+                    }} />
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            gap: '2px'
+                        }}
+                    >
+                        <IconButton
+                            onClick={handleDisableToolbar}
+                            size="small"
+                            sx={{
+                                width: 32,
+                                height: 32,
+                                padding: '4px',
+                                minWidth: '32px',
+                                color: '#666666',
+                                '&:hover': {
+                                    color: '#1A7FE9',
+                                    backgroundColor: 'rgba(26, 127, 233, 0.04)'
+                                }
+                            }}
+                        >
+                            <CloseIcon sx={{ fontSize: 18 }} />
+                        </IconButton>
+                        <Typography
+                            variant="caption"
+                            sx={{
+                                fontSize: '10px',
+                                color: '#666666'
+                            }}
+                        >
+                            关闭
+                        </Typography>
+                    </Box>
+                </Box>
             </Box>
         </ThemeProvider>
     );
@@ -417,12 +471,25 @@ const renderToolbar = (position: { x: number; y: number }) => {
     }
 };
 
+// 检查工具栏是否被禁用
+const isToolbarDisabled = () => {
+    const disabledUntil = localStorage.getItem('toolbarDisabledUntil');
+    if (disabledUntil) {
+        const disabledTime = parseInt(disabledUntil);
+        if (Date.now() < disabledTime) {
+            return true;
+        }
+        localStorage.removeItem('toolbarDisabledUntil');
+    }
+    return false;
+};
+
 // 处理文本选择
 const handleTextSelection = debounce(() => {
     const selection = window.getSelection();
     const selectedText = selection?.toString().trim() || '';
 
-    if (!selectedText || selectedText.length < MIN_TEXT_LENGTH) {
+    if (!selectedText || selectedText.length < MIN_TEXT_LENGTH || isToolbarDisabled()) {
         setTimeout(cleanupToolbar, 300);
         return;
     }
@@ -437,7 +504,7 @@ const handleTextSelection = debounce(() => {
     };
 
     renderToolbar(position);
-}, 500);
+}, 1500);
 
 // 监听文本选择事件
 document.addEventListener('mouseup', handleTextSelection);
