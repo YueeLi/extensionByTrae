@@ -72,7 +72,7 @@ const ModelDialog: React.FC<ModelDialogProps> = ({
                                         onChange={(e) => handleChange('apiFormat', e.target.value)}
                                         label="API格式"
                                     >
-                                        <MenuItem value="azure">Azure OpenAI</MenuItem>
+                                        <MenuItem value="azure">Azure</MenuItem>
                                         <MenuItem value="openai">OpenAI</MenuItem>
                                         <MenuItem value="custom">自定义</MenuItem>
                                     </Select>

@@ -446,15 +446,59 @@ const renderToolbar = (position: { x: number; y: number }) => {
         // 计算视口尺寸
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
+        
         // 工具栏预估尺寸
-        const toolbarWidth = 200;
-        const toolbarHeight = 100;
-
-        // 调整位置确保在视口内
-        const adjustedPosition = {
-            x: Math.min(Math.max(0, position.x), viewportWidth - toolbarWidth),
-            y: Math.min(Math.max(45, position.y), viewportHeight - toolbarHeight)
-        };
+        const toolbarWidth = 300;
+        const toolbarHeight = 80;
+        
+        // 获取选中文本的位置信息
+        const selection = window.getSelection();
+        const range = selection?.getRangeAt(0);
+        const textRect = range?.getBoundingClientRect();
+        
+        if (!textRect) return;
+        
+        // 计算四个方向的可用空间
+        const spaceAbove = textRect.top;
+        const spaceBelow = viewportHeight - textRect.bottom;
+        const spaceLeft = textRect.left;
+        const spaceRight = viewportWidth - textRect.right;
+        
+        // 确定最佳位置
+        let adjustedPosition = { x: position.x, y: position.y };
+        
+        // 优先选择空间最大的方向
+        if (spaceAbove >= toolbarHeight && spaceAbove >= Math.max(spaceBelow, spaceLeft, spaceRight)) {
+            // 显示在上方
+            adjustedPosition = {
+                x: Math.min(Math.max(0, textRect.left), viewportWidth - toolbarWidth),
+                y: textRect.top - toolbarHeight - 10
+            };
+        } else if (spaceBelow >= toolbarHeight && spaceBelow >= Math.max(spaceLeft, spaceRight)) {
+            // 显示在下方
+            adjustedPosition = {
+                x: Math.min(Math.max(0, textRect.left), viewportWidth - toolbarWidth),
+                y: textRect.bottom + 10
+            };
+        } else if (spaceLeft >= toolbarWidth) {
+            // 显示在左侧
+            adjustedPosition = {
+                x: Math.max(0, textRect.left - toolbarWidth - 10),
+                y: Math.min(Math.max(45, textRect.top), viewportHeight - toolbarHeight)
+            };
+        } else if (spaceRight >= toolbarWidth) {
+            // 显示在右侧
+            adjustedPosition = {
+                x: textRect.right + 10,
+                y: Math.min(Math.max(45, textRect.top), viewportHeight - toolbarHeight)
+            };
+        } else {
+            // 默认显示在下方，但确保在视口内
+            adjustedPosition = {
+                x: Math.min(Math.max(0, textRect.left), viewportWidth - toolbarWidth),
+                y: Math.min(textRect.bottom + 10, viewportHeight - toolbarHeight)
+            };
+        }
 
         toolbarRoot = ReactDOM.createRoot(container);
         toolbarRoot.render(
@@ -466,7 +510,7 @@ const renderToolbar = (position: { x: number; y: number }) => {
             </React.StrictMode>
         );
     } catch (error) {
-        console.error('工具栏渲染失败');
+        console.error('工具栏渲染失败', error);
         cleanupToolbar();
     }
 };
