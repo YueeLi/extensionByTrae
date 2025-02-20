@@ -19,7 +19,6 @@ export class AIModelManager {
                 frequency_penalty: model.frequency_penalty || 0,
                 presence_penalty: model.presence_penalty || 0,
                 stop: model.stop || null,
-                stream: model.stream || false,
                 ...model.requestConfig?.bodyTemplate
             })
         },
@@ -117,7 +116,7 @@ export class AIModelManager {
 
 
 
-    static async callAzureAI(info: LLMRequestMessage[]): Promise<string> {
+    static async callAzureAI(info: LLMRequestMessage[], port?: chrome.runtime.Port): Promise<string> {
         console.log('request LLM with ChatRequest:', info)
 
         if (!info?.length) {
@@ -139,7 +138,7 @@ export class AIModelManager {
 
             const url = modelConfig.buildUrl(selectedModel);
             const headers = modelConfig.buildHeaders(selectedModel);
-            const requestBody = modelConfig.buildBody(info, selectedModel);
+            const requestBody = modelConfig.buildBody(info, { ...selectedModel, stream: !!port });
 
             console.log('request LLM with requestBody:', requestBody);
 
@@ -165,6 +164,47 @@ export class AIModelManager {
                 throw new Error(`API调用失败: ${statusCode} ${errorData.error?.message || response.statusText}`);
             }
 
+            // 如果提供了port参数，使用流式响应
+            if (port) {
+                const reader = response.body!.getReader();
+                const decoder = new TextDecoder();
+                let fullResponse = '';
+
+                try {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+
+                        const chunk = decoder.decode(value, { stream: true });
+                        const lines = chunk.split('\n').filter(line => line.trim() !== '');
+
+                        for (const line of lines) {
+                            if (line.startsWith('data: ')) {
+                                const data = line.slice(6);
+                                if (data === '[DONE]') continue;
+
+                                try {
+                                    const { content, done } = await this.processStreamChunk(data);
+                                    if (content) {
+                                        fullResponse += content;
+                                        port.postMessage({ type: 'CHUNK', data: content });
+                                    }
+                                    if (done) break;
+                                } catch (e) {
+                                    console.error('处理数据块时出错:', e);
+                                }
+                            }
+                        }
+                    }
+                } finally {
+                    reader.releaseLock();
+                    port.postMessage({ type: 'DONE' });
+                }
+
+                return fullResponse;
+            }
+
+            // 非流式响应处理
             const result = await response.json();
             if (!result.choices || !Array.isArray(result.choices) || result.choices.length === 0) {
                 throw new Error('API响应格式无效');
@@ -176,6 +216,9 @@ export class AIModelManager {
             return choice.message.content;
         } catch (error) {
             console.error('API调用出错:', error);
+            if (port) {
+                port.postMessage({ type: 'ERROR', error: error instanceof Error ? error.message : '未知错误' });
+            }
             throw error;
         }
     }

@@ -349,28 +349,53 @@ const ChatPanel: React.FC = () => {
 
                 setMessages(prev => [...prev, tempAiMessage]);
 
-                const response = await chrome.runtime.sendMessage({
-                    type: 'chat',
-                    operate: 'single',
+                // 建立流式连接
+                const port = chrome.runtime.connect({ name: 'STREAM_LLM' });
+                let streamContent = '';
+
+                // 监听流式响应
+                port.onMessage.addListener((msg) => {
+                    if (msg.type === 'CHUNK') {
+                        streamContent += msg.data;
+                        // 使用requestAnimationFrame优化渲染性能
+                        requestAnimationFrame(() => {
+                            setMessages(prev => prev.map(message =>
+                                message.id === tempAiMessage.id
+                                    ? {
+                                        ...message,
+                                        content: [{
+                                            type: 'text',
+                                            text: streamContent
+                                        }]
+                                    }
+                                    : message
+                            ));
+                        });
+                    } else if (msg.type === 'ERROR') {
+                        const errorMessage: Message = {
+                            id: Date.now().toString(),
+                            content: [{
+                                type: 'text',
+                                text: `错误：${msg.error}`
+                            }],
+                            isUser: false,
+                            timestamp: Date.now(),
+                            role: 'system'
+                        };
+                        setMessages(prev => [...prev, errorMessage]);
+                        setError(msg.error);
+                        port.disconnect();
+                    } else if (msg.type === 'DONE') {
+                        port.disconnect();
+                    }
+                });
+
+                // 发送开始指令
+                port.postMessage({
+                    action: 'CHAT',
                     content: newContent
                 });
 
-                if (response.error) {
-                    throw new Error(response.error);
-                }
-
-                // 更新临时消息的内容
-                setMessages(prev => prev.map(msg =>
-                    msg.id === tempAiMessage.id
-                        ? {
-                            ...msg,
-                            content: [{
-                                type: 'text',
-                                text: typeof response === 'string' ? response : response.content || '无响应内容'
-                            }]
-                        }
-                        : msg
-                ));
             } catch (error) {
                 const errorMessage: Message = {
                     id: Date.now().toString(),
@@ -471,9 +496,9 @@ const ChatPanel: React.FC = () => {
                     animation: 'fadeIn 0.3s ease-in-out'
                 }}>
                     <CircularProgress size={32} thickness={3} sx={{ color: '#1976d2' }} />
-                    <Typography 
-                        variant="body2" 
-                        sx={{ 
+                    <Typography
+                        variant="body2"
+                        sx={{
                             color: '#333333',
                             fontSize: '14px',
                             fontWeight: 400,

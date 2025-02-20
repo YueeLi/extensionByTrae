@@ -20,7 +20,7 @@ class MessageCenter {
     }
 
     // 处理聊天请求, 并返回处理结果.涉及历史消息及session操作.
-    static async handleChatRequest(operate: string, content: MessageContent[]): Promise<string> {
+    static async handleChatRequest(operate: string, content: MessageContent[], port?: chrome.runtime.Port): Promise<string> {
 
         const userMessage = MessageFactory.createUserMessage(content || []);
         const newMsg: LLMRequestMessage = {
@@ -48,7 +48,7 @@ class MessageCenter {
         }
         reqMessages.push(newMsg);
         console.log('chat request to LLM:', reqMessages);
-        const response = await AIModelManager.callAzureAI(reqMessages);
+        const response = await AIModelManager.callAzureAI(reqMessages, port);
         const assistantMessage = MessageFactory.createAssistantMessage([{
             type: 'text',
             text: response
@@ -77,24 +77,51 @@ class MessageCenter {
     }
 }
 
-// 统一消息监听器
-chrome.runtime.onMessage.addListener((message: HandleExtensionRequest, _sender, sendResponse) => {
-    // 处理聊天请求
-    if (message.type === 'chat') {
-        (async () => {
-            try {
-                const response = await MessageCenter.handleChatRequest(message.operate, message.content ?? []);
-                sendResponse({ content: response });
-            } catch (error) {
-                console.error('处理消息时出错:', error);
-                sendResponse({
-                    error: error instanceof Error ? error.message : '处理消息时发生未知错误'
-                });
-            }
-        })();
-        return true;
-    }
+// 保持Service Worker活跃
+let keepAliveTimer: NodeJS.Timeout;
+function resetKeepAlive() {
+    if (keepAliveTimer) clearTimeout(keepAliveTimer);
+    keepAliveTimer = setTimeout(() => {
+        // 使用chrome.alarms API来保持Service Worker活跃
+        chrome.alarms.create('keepAlive', {
+            periodInMinutes: 0.25 // 每15秒触发一次
+        });
+        resetKeepAlive();
+    }, 20 * 1000);
+}
 
+// 监听alarm事件
+chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === 'keepAlive') {
+        console.log('Service Worker保持活跃:', new Date().toLocaleString());
+    }
+});
+
+resetKeepAlive();
+
+
+// port长连接, 处理流式chat消息
+chrome.runtime.onConnect.addListener((port) => {
+    if (port.name === 'STREAM_LLM') {
+        port.onMessage.addListener(async (message) => {
+            if (message.action === 'CHAT') {
+                try {
+                    await MessageCenter.handleChatRequest(message.operate, message.content ?? [], port);
+                } catch (error) {
+                    console.error('处理流式消息时出错:', error);
+                    port.postMessage({ type: 'ERROR', error: error instanceof Error ? error.message : '处理消息时发生未知错误' });
+                }
+            }
+        });
+
+        port.onDisconnect.addListener(() => {
+            console.log('Stream connection closed');
+        });
+    }
+});
+
+// 短连接, 处理content消息、session消息
+chrome.runtime.onMessage.addListener((message: HandleExtensionRequest, _sender, sendResponse) => {
     // 处理content相关请求
     if (message.type === 'content') {
         (async () => {
