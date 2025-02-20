@@ -2,8 +2,7 @@
 export interface ModelConfig {
     // 基础配置
     id: string;  // 模型配置的唯一标识
-    name: string;  // 模型配置的显示名称
-    model: string;  // 模型名称
+    model: string;  // 模型名称（同时用作显示名称）
     apiFormat: 'azure' | 'openai' | 'custom';  // API格式
 
     // API配置

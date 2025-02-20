@@ -36,6 +36,26 @@ const ModelDialog: React.FC<ModelDialogProps> = ({
     setModelFormData,
     editingModel
 }) => {
+    React.useEffect(() => {
+        if (!modelFormData.id) {
+            setModelFormData(prev => ({
+                ...prev,
+                id: Date.now().toString(),
+                deploymentName: '',
+                apiVersion: '2024-02-15-preview',
+                model: 'gpt-4o',
+                apiKey: '',
+                endpoint: '',
+                apiFormat: 'azure',
+                apiPath: '',
+                requestConfig: {
+                    headers: {},
+                    params: {},
+                    bodyTemplate: {}
+                }
+            }));
+        }
+    }, [modelFormData.id, setModelFormData]);
     const handleChange = (field: keyof ModelConfig, value: any) => {
         setModelFormData(prev => ({ ...prev, [field]: value }));
     };
@@ -51,20 +71,25 @@ const ModelDialog: React.FC<ModelDialogProps> = ({
                         </AccordionSummary>
                         <AccordionDetails>
                             <Box sx={{ display: 'grid', gap: 2 }}>
-                                <TextField
-                                    label="模型名称"
-                                    value={modelFormData.name}
-                                    onChange={(e) => handleChange('name', e.target.value)}
-                                    required
-                                    fullWidth
-                                />
-                                <TextField
-                                    label="模型标识"
-                                    value={modelFormData.model}
-                                    onChange={(e) => handleChange('model', e.target.value)}
-                                    required
-                                    fullWidth
-                                />
+                                <FormControl fullWidth required>
+                                    <InputLabel>模型名称</InputLabel>
+                                    <Select
+                                        value={modelFormData.model}
+                                        onChange={(e) => handleChange('model', e.target.value)}
+                                        label="模型名称"
+                                    >
+                                        <MenuItem value="gpt-4o">gpt-4o</MenuItem>
+                                        <MenuItem value="o1-mini">o1-mini</MenuItem>
+                                        <MenuItem value="o1">o1</MenuItem>
+                                        <MenuItem value="o3-mini">o3-mini</MenuItem>
+                                        <MenuItem value="o3">o3</MenuItem>
+                                        <MenuItem value="DeepSeek-R1">DeepSeek-R1</MenuItem>
+                                        <MenuItem value="DeepSeek-V3">DeepSeek-V3</MenuItem>
+                                        <MenuItem value="Claude">Claude</MenuItem>
+                                        <MenuItem value="Llama3">Llama3</MenuItem>
+                                        <MenuItem value="Qwen2.5">Qwen2.5</MenuItem>
+                                    </Select>
+                                </FormControl>
                                 <FormControl fullWidth required>
                                     <InputLabel>API格式</InputLabel>
                                     <Select

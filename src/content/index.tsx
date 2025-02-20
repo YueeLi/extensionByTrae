@@ -125,11 +125,13 @@ const ResultPanel: React.FC<ResultPanelProps> = ({ result, position, onClose }) 
                     </svg>
                 </IconButton>
             </Box>
-            <Box sx={{ color: '#666666', fontSize: '14px', mb: 2 }}>
+            <Box sx={{ color: '#666666', fontSize: '14px', mb: 2, maxHeight: '30vh', overflowY: 'auto', '&::-webkit-scrollbar': { width: '4px' }, '&::-webkit-scrollbar-track': { background: 'transparent' }, '&::-webkit-scrollbar-thumb': { background: 'rgba(0, 0, 0, 0.1)', borderRadius: '4px', '&:hover': { background: 'rgba(0, 0, 0, 0.2)' } } }}>
                 <Typography variant="body2" sx={{ mb: 1 }}>原文：</Typography>
                 <MarkdownRenderer content={result.text} />
             </Box>
-            <MarkdownRenderer content={result.content} />
+            <Box sx={{ maxHeight: '40vh', overflowY: 'auto', '&::-webkit-scrollbar': { width: '4px' }, '&::-webkit-scrollbar-track': { background: 'transparent' }, '&::-webkit-scrollbar-thumb': { background: 'rgba(0, 0, 0, 0.1)', borderRadius: '4px', '&:hover': { background: 'rgba(0, 0, 0, 0.2)' } } }}>
+                <MarkdownRenderer content={result.content} />
+            </Box>
         </Box>
     );
 };

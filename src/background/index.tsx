@@ -10,34 +10,6 @@ chrome.sidePanel
     .setPanelBehavior({ openPanelOnActionClick: true })
     .catch((error) => console.error(error));
 
-// 通用重试机制
-class RetryManager {
-    private static readonly MAX_RETRIES = 3;
-    private static readonly BASE_DELAY = 1000; // 1秒
-
-    static async withRetry<T>(operation: () => Promise<T>, errorHandler?: (error: Error) => void): Promise<T> {
-        let retryCount = 0;
-        while (retryCount < this.MAX_RETRIES) {
-            try {
-                return await operation();
-            } catch (error) {
-                retryCount++;
-                if (errorHandler && error instanceof Error) {
-                    errorHandler(error);
-                }
-                if (retryCount === this.MAX_RETRIES) {
-                    throw error;
-                }
-                // 指数退避重试
-                await new Promise(resolve =>
-                    setTimeout(resolve, Math.pow(2, retryCount) * this.BASE_DELAY)
-                );
-            }
-        }
-        throw new Error('请求失败，已达到最大重试次数');
-    }
-}
-
 // 统一消息处理中心
 class MessageCenter {
     private static readonly MESSAGE_TEMPLATES = {
@@ -76,16 +48,14 @@ class MessageCenter {
         }
         reqMessages.push(newMsg);
         console.log('chat request to LLM:', reqMessages);
-        return RetryManager.withRetry(async () => {
-            const response = await AIModelManager.callAzureAI(reqMessages);
-            const assistantMessage = MessageFactory.createAssistantMessage([{
-                type: 'text',
-                text: response
-            }]);
-            await SessionManager.updateSession(currentSessionID, userMessage);
-            await SessionManager.updateSession(currentSessionID, assistantMessage);
-            return response;
-        });
+        const response = await AIModelManager.callAzureAI(reqMessages);
+        const assistantMessage = MessageFactory.createAssistantMessage([{
+            type: 'text',
+            text: response
+        }]);
+        await SessionManager.updateSession(currentSessionID, userMessage);
+        await SessionManager.updateSession(currentSessionID, assistantMessage);
+        return response;
     }
 
     // 处理content相关请求, 如翻译、分析、解释、总结等, 并返回处理结果.不涉及历史消息及session操作.
@@ -102,10 +72,8 @@ class MessageCenter {
         };
 
         const reqMessages: LLMRequestMessage[] = newMsg ? [newMsg] : [];
-        return RetryManager.withRetry(async () => {
-            const response = await AIModelManager.callAzureAI(reqMessages);
-            return response;
-        });
+        const response = await AIModelManager.callAzureAI(reqMessages);
+        return response;
     }
 }
 

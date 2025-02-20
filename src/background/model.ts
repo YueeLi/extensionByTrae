@@ -12,7 +12,7 @@ export class AIModelManager {
             }),
             buildBody: (messages, model) => ({
                 messages,
-                model: model.model,
+                model: model.deploymentName,
                 max_tokens: model.max_tokens || 4096,
                 temperature: model.temperature || 0.7,
                 top_p: model.top_p || 0.95,
@@ -32,7 +32,7 @@ export class AIModelManager {
             }),
             buildBody: (messages, model) => ({
                 messages,
-                model: model.model,
+                model: model.deploymentName,
                 max_completion_tokens: model.max_completion_tokens || 4096,
                 temperature: model.temperature || 1.0,
                 ...model.requestConfig?.bodyTemplate
@@ -47,7 +47,7 @@ export class AIModelManager {
             }),
             buildBody: (messages, model) => ({
                 messages,
-                model: model.model,
+                model: model.deploymentName,
                 max_tokens: 4096,
                 ...model.requestConfig?.bodyTemplate
             })
@@ -61,7 +61,7 @@ export class AIModelManager {
             }),
             buildBody: (messages, model) => ({
                 messages,
-                model: model.model,
+                model: model.deploymentName,
                 max_tokens: 4096,
                 temperature: 0.7,
                 ...model.requestConfig?.bodyTemplate
@@ -77,7 +77,7 @@ export class AIModelManager {
             }),
             buildBody: (messages, model) => ({
                 messages,
-                model: model.model,
+                model: model.deploymentName,
                 max_tokens: 4096,
                 temperature: 0.7,
                 ...model.requestConfig?.bodyTemplate
@@ -92,7 +92,7 @@ export class AIModelManager {
             }),
             buildBody: (messages, model) => ({
                 messages,
-                model: model.model,
+                model: model.deploymentName,
                 max_tokens: 4096,
                 temperature: 0.7,
                 ...model.requestConfig?.bodyTemplate
@@ -115,25 +115,7 @@ export class AIModelManager {
         }
     }
 
-    private static readonly MAX_RETRIES = 3;
-    private static readonly RETRY_DELAY = 1000; // 1秒
 
-    private static async retryWithExponentialBackoff<T>(
-        operation: () => Promise<T>,
-        retries: number = this.MAX_RETRIES
-    ): Promise<T> {
-        for (let i = 0; i < retries; i++) {
-            try {
-                return await operation();
-            } catch (error) {
-                if (i === retries - 1) throw error;
-                const delay = Math.pow(2, i) * this.RETRY_DELAY;
-                console.log(`重试请求 (${i + 1}/${retries})，等待 ${delay}ms...`);
-                await new Promise(resolve => setTimeout(resolve, delay));
-            }
-        }
-        throw new Error('超过最大重试次数');
-    }
 
     static async callAzureAI(info: LLMRequestMessage[]): Promise<string> {
         console.log('request LLM with ChatRequest:', info)
@@ -161,40 +143,37 @@ export class AIModelManager {
 
             console.log('request LLM with requestBody:', requestBody);
 
-            return await this.retryWithExponentialBackoff(async () => {
-                const response = await fetch(url, {
-                    method: 'POST',
-                    headers,
-                    body: JSON.stringify(requestBody)
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    const statusCode = response.status;
-
-                    // 细分错误类型
-                    if (statusCode === 429) {
-                        throw new Error('API请求过于频繁，请稍后重试');
-                    } else if (statusCode === 401 || statusCode === 403) {
-                        throw new Error('API认证失败，请检查密钥是否正确');
-                    } else if (statusCode >= 500) {
-                        throw new Error('API服务器错误，请稍后重试');
-                    }
-
-                    throw new Error(`API调用失败: ${statusCode} ${errorData.error?.message || response.statusText}`);
-                }
-
-                const result = await response.json();
-                if (!result.choices || !Array.isArray(result.choices) || result.choices.length === 0) {
-                    throw new Error('API响应格式无效');
-                }
-                const choice = result.choices[0];
-                if (!choice.message || typeof choice.message.content !== 'string') {
-                    throw new Error('API响应内容格式无效');
-                }
-                return choice.message.content;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify(requestBody)
             });
 
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                const statusCode = response.status;
+
+                // 细分错误类型
+                if (statusCode === 429) {
+                    throw new Error('API请求过于频繁，请稍后重试');
+                } else if (statusCode === 401 || statusCode === 403) {
+                    throw new Error('API认证失败，请检查密钥是否正确');
+                } else if (statusCode >= 500) {
+                    throw new Error('API服务器错误，请稍后重试');
+                }
+
+                throw new Error(`API调用失败: ${statusCode} ${errorData.error?.message || response.statusText}`);
+            }
+
+            const result = await response.json();
+            if (!result.choices || !Array.isArray(result.choices) || result.choices.length === 0) {
+                throw new Error('API响应格式无效');
+            }
+            const choice = result.choices[0];
+            if (!choice.message || typeof choice.message.content !== 'string') {
+                throw new Error('API响应内容格式无效');
+            }
+            return choice.message.content;
         } catch (error) {
             console.error('API调用出错:', error);
             throw error;

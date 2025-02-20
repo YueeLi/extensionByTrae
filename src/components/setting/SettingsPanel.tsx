@@ -17,7 +17,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
     const [settings, setSettings] = useState<Settings>({
         models: [{
             id: '1',
-            name: 'gpt-4o',
             deploymentName: '',
             apiVersion: '2024-02-15-preview',
             model: 'gpt-4o',
@@ -40,7 +39,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
         defaultModelId: '1',
         defaultModel: {
             id: '1',
-            name: 'gpt-4o',
             deploymentName: '',
             apiVersion: '2024-02-15-preview',
             model: 'gpt-4o',
@@ -71,7 +69,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
         setEditingModel(null);
         setModelFormData({
             id: Date.now().toString(),
-            name: '',
             deploymentName: '',
             apiVersion: '2024-02-15-preview',
             model: 'gpt-4o',
@@ -124,7 +121,6 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
 
     const [modelFormData, setModelFormData] = useState<ModelConfig>({
         id: '',
-        name: '',
         deploymentName: '',
         apiVersion: '2024-02-15-preview',
         model: 'gpt-4o',
@@ -141,27 +137,27 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
 
     const validateModelSettings = async (model: ModelConfig) => {
         if (!model.deploymentName.trim()) {
-            throw new Error(`模型 "${model.name}" 的 Deployment Name 不能为空`);
+            throw new Error(`模型 "${model.model}" 的 Deployment Name 不能为空`);
         }
 
         if (!model.apiKey?.trim()) {
-            throw new Error(`模型 "${model.name}" 的 API Key 不能为空`);
+            throw new Error(`模型 "${model.model}" 的 API Key 不能为空`);
         }
 
         if (!model.endpoint?.trim()) {
-            throw new Error(`模型 "${model.name}" 的 Endpoint 不能为空`);
+            throw new Error(`模型 "${model.model}" 的 Endpoint 不能为空`);
         }
 
         // 验证 Endpoint 格式
         try {
             new URL(model.endpoint);
         } catch {
-            throw new Error(`模型 "${model.name}" 的 Endpoint 格式无效，请输入完整的 URL`);
+            throw new Error(`模型 "${model.model}" 的 Endpoint 格式无效，请输入完整的 URL`);
         }
 
         // 验证API格式相关的必填字段
         if (model.apiFormat === 'custom' && !model.apiPath?.trim()) {
-            throw new Error(`模型 "${model.name}" 使用自定义API格式时，API路径不能为空`);
+            throw new Error(`模型 "${model.model}" 使用自定义API格式时，API路径不能为空`);
         }
 
         // 根据不同的API格式执行不同的验证
@@ -219,9 +215,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
 
     const handleSaveModel = async (model: ModelConfig) => {
         try {
-            if (!model.name?.trim()) {
-                throw new Error('模型名称不能为空');
-            }
+
             if (!model.model?.trim()) {
                 throw new Error('模型标识不能为空');
             }
@@ -375,10 +369,13 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
                                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
                                     <Box>
                                         <Typography variant="subtitle1" sx={{ color: '#1A1A1A', fontWeight: 500, mb: 0.5 }}>
-                                            {model.name}
+                                            {model.model}
+                                        </Typography>
+                                        <Typography variant="body2" sx={{ color: '#666666', mb: 0.5 }}>
+                                            部署名称: {model.deploymentName}
                                         </Typography>
                                         <Typography variant="body2" sx={{ color: '#666666' }}>
-                                            {model.deploymentName} ({model.model})
+                                            API格式: {model.apiFormat === 'azure' ? 'Azure' : model.apiFormat === 'openai' ? 'OpenAI' : '自定义'}
                                         </Typography>
                                     </Box>
                                     <Box sx={{ display: 'flex', gap: 1 }}>
