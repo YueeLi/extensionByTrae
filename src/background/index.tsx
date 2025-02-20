@@ -59,7 +59,7 @@ class MessageCenter {
     }
 
     // 处理content相关请求, 如翻译、分析、解释、总结等, 并返回处理结果.不涉及历史消息及session操作.
-    static async handleContentRequest(operate: string, content: MessageContent[]): Promise<string> {
+    static async handleContentRequest(operate: string, content: MessageContent[], port?: chrome.runtime.Port): Promise<string> {
         const textContent = content?.find(item => item.type === 'text')?.text || '';
         const template = this.MESSAGE_TEMPLATES[operate as keyof typeof this.MESSAGE_TEMPLATES];
         if (!textContent) {
@@ -72,45 +72,24 @@ class MessageCenter {
         };
 
         const reqMessages: LLMRequestMessage[] = newMsg ? [newMsg] : [];
-        const response = await AIModelManager.callAzureAI(reqMessages);
+        const response = await AIModelManager.callAzureAI(reqMessages, port);
         return response;
     }
 }
-
-// 保持Service Worker活跃
-let keepAliveTimer: NodeJS.Timeout;
-function resetKeepAlive() {
-    if (keepAliveTimer) clearTimeout(keepAliveTimer);
-    keepAliveTimer = setTimeout(() => {
-        // 使用chrome.alarms API来保持Service Worker活跃
-        chrome.alarms.create('keepAlive', {
-            periodInMinutes: 0.25 // 每15秒触发一次
-        });
-        resetKeepAlive();
-    }, 20 * 1000);
-}
-
-// 监听alarm事件
-chrome.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === 'keepAlive') {
-        console.log('Service Worker保持活跃:', new Date().toLocaleString());
-    }
-});
-
-resetKeepAlive();
-
 
 // port长连接, 处理流式chat消息
 chrome.runtime.onConnect.addListener((port) => {
     if (port.name === 'STREAM_LLM') {
         port.onMessage.addListener(async (message) => {
-            if (message.action === 'CHAT') {
-                try {
+            try {
+                if (message.action === 'CHAT') {
                     await MessageCenter.handleChatRequest(message.operate, message.content ?? [], port);
-                } catch (error) {
-                    console.error('处理流式消息时出错:', error);
-                    port.postMessage({ type: 'ERROR', error: error instanceof Error ? error.message : '处理消息时发生未知错误' });
+                } else if (message.action === 'CONTENT') {
+                    await MessageCenter.handleContentRequest(message.operate, message.content ?? [], port);
                 }
+            } catch (error) {
+                console.error('处理流式消息时出错:', error);
+                port.postMessage({ type: 'ERROR', error: error instanceof Error ? error.message : '处理消息时发生未知错误' });
             }
         });
 
@@ -120,23 +99,8 @@ chrome.runtime.onConnect.addListener((port) => {
     }
 });
 
-// 短连接, 处理content消息、session消息
+// 短连接, 处理session消息
 chrome.runtime.onMessage.addListener((message: HandleExtensionRequest, _sender, sendResponse) => {
-    // 处理content相关请求
-    if (message.type === 'content') {
-        (async () => {
-            try {
-                const result = await MessageCenter.handleContentRequest(message.operate, message.content ?? []);
-                sendResponse({ content: result });
-            } catch (error) {
-                console.error('Content operation error:', error);
-                sendResponse({ error: error instanceof Error ? error.message : '操作失败' });
-            }
-        })();
-        return true;
-    }
-
-    // 处理会话相关请求
     if (message.type === 'session') {
         (async () => {
             try {

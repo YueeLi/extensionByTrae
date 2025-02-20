@@ -16,9 +16,7 @@ export class AIModelManager {
                 max_tokens: model.max_tokens || 4096,
                 temperature: model.temperature || 0.7,
                 top_p: model.top_p || 0.95,
-                frequency_penalty: model.frequency_penalty || 0,
-                presence_penalty: model.presence_penalty || 0,
-                stop: model.stop || null,
+                stream: model.stream || false,
                 ...model.requestConfig?.bodyTemplate
             })
         },
@@ -34,6 +32,7 @@ export class AIModelManager {
                 model: model.deploymentName,
                 max_completion_tokens: model.max_completion_tokens || 4096,
                 temperature: model.temperature || 1.0,
+                strem: model.stream || false,
                 ...model.requestConfig?.bodyTemplate
             })
         },
@@ -48,6 +47,7 @@ export class AIModelManager {
                 messages,
                 model: model.deploymentName,
                 max_tokens: 4096,
+                stream: model.stream || false,
                 ...model.requestConfig?.bodyTemplate
             })
         },

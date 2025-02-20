@@ -393,6 +393,7 @@ const ChatPanel: React.FC = () => {
                 // 发送开始指令
                 port.postMessage({
                     action: 'CHAT',
+                    operate: 'signal',
                     content: newContent
                 });
 

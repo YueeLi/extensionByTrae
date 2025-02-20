@@ -193,38 +193,21 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
                 throw new Error('扩展未准备就绪，请刷新页面重试');
             }
 
-            // 发送处理请求到background
-            console.log('Sending message to background:', {
-                type: 'content',
-                operate: operate,
-                content: newContent
-            });
-            const response = await chrome.runtime.sendMessage({
-                type: 'content',
-                operate: operate,
-                content: newContent
-            });
-
-            // 统一消息格式
-            const message = {
-                id: Date.now().toString(),
-                content: response.content || response,
-                isUser: false,
-                timestamp: Date.now()
-            };
-
             // 渲染结果面板
             const resultPanelContainer = document.createElement('div');
             resultPanelContainer.id = 'result-panel-root';
             document.body.appendChild(resultPanelContainer);
 
             const resultPanelRoot = ReactDOM.createRoot(resultPanelContainer);
+            let streamContent = '';
+
+            // 初始渲染空内容的结果面板
             resultPanelRoot.render(
                 <ResultPanel
                     position={position}
                     result={{
                         type: operate,
-                        content: message.content,
+                        content: '',
                         text: selectedText
                     }}
                     onClose={() => {
@@ -233,6 +216,49 @@ const FloatingToolbar: React.FC<FloatingToolbarProps> = ({ position, onClose }) 
                     }}
                 />
             );
+
+            // 建立流式连接
+            const port = chrome.runtime.connect({ name: 'STREAM_LLM' });
+
+            // 监听流式响应
+            port.onMessage.addListener((msg) => {
+                if (msg.type === 'CHUNK') {
+                    streamContent += msg.data;
+                    // 使用requestAnimationFrame优化渲染性能
+                    requestAnimationFrame(() => {
+                        resultPanelRoot.render(
+                            <ResultPanel
+                                position={position}
+                                result={{
+                                    type: operate,
+                                    content: streamContent,
+                                    text: selectedText
+                                }}
+                                onClose={() => {
+                                    port.disconnect();
+                                    resultPanelRoot.unmount();
+                                    document.body.removeChild(resultPanelContainer);
+                                }}
+                            />
+                        );
+                    });
+                } else if (msg.type === 'ERROR') {
+                    setError(`${operate}操作失败: ${msg.error}`);
+                    port.disconnect();
+                    resultPanelRoot.unmount();
+                    document.body.removeChild(resultPanelContainer);
+                } else if (msg.type === 'DONE') {
+                    port.disconnect();
+                }
+            });
+
+            // 发送开始指令
+            port.postMessage({
+                action: 'CONTENT',
+                operate: operate,
+                content: newContent
+            });
+
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : '未知错误';
             setError(`${operate}操作失败: ${errorMessage}`);
@@ -448,27 +474,27 @@ const renderToolbar = (position: { x: number; y: number }) => {
         // 计算视口尺寸
         const viewportWidth = window.innerWidth;
         const viewportHeight = window.innerHeight;
-        
+
         // 工具栏预估尺寸
         const toolbarWidth = 300;
         const toolbarHeight = 80;
-        
+
         // 获取选中文本的位置信息
         const selection = window.getSelection();
         const range = selection?.getRangeAt(0);
         const textRect = range?.getBoundingClientRect();
-        
+
         if (!textRect) return;
-        
+
         // 计算四个方向的可用空间
         const spaceAbove = textRect.top;
         const spaceBelow = viewportHeight - textRect.bottom;
         const spaceLeft = textRect.left;
         const spaceRight = viewportWidth - textRect.right;
-        
+
         // 确定最佳位置
         let adjustedPosition = { x: position.x, y: position.y };
-        
+
         // 优先选择空间最大的方向
         if (spaceAbove >= toolbarHeight && spaceAbove >= Math.max(spaceBelow, spaceLeft, spaceRight)) {
             // 显示在上方
