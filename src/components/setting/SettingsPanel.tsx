@@ -180,7 +180,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
 
             const body = {
                 messages: [{ role: 'user', content: 'This is a test message.' }],
-                model: model.model,
+                model: model.deploymentName,
                 max_completion_tokens: 1,
                 ...(model.requestConfig?.bodyTemplate || {})
             };
