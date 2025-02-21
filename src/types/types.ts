@@ -61,7 +61,6 @@ export interface MessageContent {
     text?: string;
     image_url?: FileResource;
     file?: FileResource;
-    isReasoning?: boolean;
 }
 
 // 对话消息接口
@@ -70,6 +69,8 @@ export interface Message {
     timestamp: number;
     isUser: boolean;
     content: MessageContent[];
+    isReasoning?: boolean;
+    reasoning_content?: MessageContent;
     role: MessageRole;
 }
 
