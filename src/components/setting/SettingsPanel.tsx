@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Button, Typography, Alert, IconButton, Paper } from '@mui/material';
+import { Box, Button, Typography, Alert, IconButton, FormControlLabel, Paper, Switch } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -164,7 +164,7 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
         try {
             const url = model.apiFormat === 'azure'
                 ? `${model.endpoint}/openai/deployments/${model.deploymentName}/chat/completions?api-version=${model.apiVersion}`
-                : `${model.endpoint}${model.apiPath || '/v1/chat/completions'}`;
+                : `${model.endpoint}${model.apiPath || '/api/v3/chat/completions'}`;
 
             const headers = model.apiFormat === 'azure'
                 ? {
@@ -431,6 +431,23 @@ const SettingsPanel: React.FC<SettingsPanelProps> = ({ onHomeClick }) => {
                                     >
                                         保存
                                     </Button>
+                                    <FormControlLabel
+                                        control={
+                                            <Switch
+                                                size="small"
+                                                checked={model.reasoning || false}
+                                                onChange={(e) => {
+                                                    const updatedModel = {
+                                                        ...model,
+                                                        reasoning: e.target.checked
+                                                    };
+                                                    handleSaveModel(updatedModel);
+                                                }}
+                                            />
+                                        }
+                                        label="推理模式"
+                                        sx={{ ml: 2 }}
+                                    />
                                     <Button
                                         size="small"
                                         variant={defaultModelId === model.id ? "contained" : "outlined"}

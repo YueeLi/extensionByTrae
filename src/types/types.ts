@@ -26,6 +26,7 @@ export interface ModelConfig {
     presence_penalty?: number;  // 控制话题重复的惩罚程度 (-2.0-2.0)
     stop?: string[] | null;  // 停止生成的标记
     stream?: boolean;  // 是否启用流式响应
+    reasoning?: boolean;  // 是否启用推理模式
 }
 
 // 请求体封装
@@ -60,6 +61,7 @@ export interface MessageContent {
     text?: string;
     image_url?: FileResource;
     file?: FileResource;
+    isReasoning?: boolean;
 }
 
 // 对话消息接口
@@ -100,6 +102,7 @@ export interface LLMRequestFullBody {
     presence_penalty?: number;  // 控制话题重复的惩罚程度 (-2.0-2.0)
     stop?: string[] | null;  // 停止生成的标记
     stream?: boolean;  // 是否启用流式响应
+    reasoning?: boolean;  // 是否启用推理模式
 }
 
 // 插件请求类型
@@ -125,6 +128,7 @@ export interface HandleExtensionRequest {
 // 流式响应接口
 export interface StreamChunkResponse {
     content: string;
+    reasoning_content?: string;
     done: boolean;
 }
 

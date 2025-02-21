@@ -15,11 +15,22 @@ interface MarkdownRendererProps {
         detail?: string;
     }>;
     textColor?: string;
+    isReasoning?: boolean;
 }
 
-const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, attachments = [], textColor = 'inherit' }) => {
+const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, attachments = [], textColor = 'inherit', isReasoning = false }) => {
     return (
-        <Box sx={{ color: textColor }}>
+        <Box sx={{ 
+            color: textColor,
+            ...(isReasoning && {
+                color: '#666666',
+                fontSize: '0.9em',
+                fontStyle: 'italic',
+                borderLeft: '2px solid #E0E0E0',
+                paddingLeft: '12px',
+                margin: '8px 0'
+            })
+        }}>
             <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{

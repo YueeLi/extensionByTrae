@@ -371,6 +371,22 @@ const ChatPanel: React.FC = () => {
                                     : message
                             ));
                         });
+                    } else if (msg.type === 'REASONING') {
+                        streamContent += msg.data;
+                        // 使用requestAnimationFrame优化渲染性能
+                        requestAnimationFrame(() => {
+                            setMessages(prev => prev.map(message =>
+                                message.id === tempAiMessage.id
+                                    ? {
+                                        ...message,
+                                        content: [{
+                                            type: 'text',
+                                            text: streamContent
+                                        }]
+                                    }
+                                    : message
+                            ));
+                        });
                     } else if (msg.type === 'ERROR') {
                         const errorMessage: Message = {
                             id: Date.now().toString(),

@@ -32,11 +32,11 @@ export class AIModelManager {
                 model: model.deploymentName,
                 max_completion_tokens: model.max_completion_tokens || 4096,
                 temperature: model.temperature || 1.0,
-                strem: model.stream || false,
+                stream: model.stream || false,
                 ...model.requestConfig?.bodyTemplate
             })
         },
-        'deepseek': {
+        'DeepSeek-R1': {
             buildUrl: (model) => `${model.endpoint}/api/v3/chat/completions`,
             buildHeaders: (model) => ({
                 'Content-Type': 'application/json',
@@ -46,8 +46,9 @@ export class AIModelManager {
             buildBody: (messages, model) => ({
                 messages,
                 model: model.deploymentName,
-                max_tokens: 65536,
+                max_tokens: model.max_tokens || 4096,
                 stream: model.stream || false,
+                reasoning: model.reasoning || false,
                 ...model.requestConfig?.bodyTemplate
             })
         },
@@ -107,7 +108,8 @@ export class AIModelManager {
         try {
             const parsed = JSON.parse(chunk);
             const content = parsed.choices?.[0]?.delta?.content || '';
-            return { content, done: false };
+            const reasoning_content = parsed.choices?.[0]?.delta?.reasoning_content || '';
+            return { content, reasoning_content, done: false };
         } catch (e) {
             console.error('解析响应数据失败:', e);
             return { content: '', done: false };
@@ -184,10 +186,13 @@ export class AIModelManager {
                                 if (data === '[DONE]') continue;
 
                                 try {
-                                    const { content, done } = await this.processStreamChunk(data);
+                                    const { content, reasoning_content, done } = await this.processStreamChunk(data);
                                     if (content) {
                                         fullResponse += content;
                                         port.postMessage({ type: 'CHUNK', data: content });
+                                    }
+                                    if (reasoning_content) {
+                                        port.postMessage({ type: 'REASONING', data: reasoning_content });
                                     }
                                     if (done) break;
                                 } catch (e) {
