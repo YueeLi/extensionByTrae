@@ -153,7 +153,7 @@ export class SessionManager {
             }
 
             session.messages.push(newMessage);
-            session.lastMessage = newMessage.content[0]?.text || '';
+            session.lastMessage = (newMessage.content[0]?.text || '').trim();
             session.timestamp = Date.now();
             session.messagesCount = session.messages.length;
 
