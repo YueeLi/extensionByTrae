@@ -68,7 +68,7 @@ export interface Message {
     id: string;
     timestamp: number;
     isUser: boolean;
-    content: MessageContent[];
+    content: MessageContent[];  // 支持连续对话情况适用数组
     isReasoning?: boolean;
     reasoning_content?: MessageContent;
     role: MessageRole;

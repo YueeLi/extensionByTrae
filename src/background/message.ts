@@ -7,7 +7,8 @@ export class MessageFactory {
             content,
             id: crypto.randomUUID(),
             timestamp: Date.now(),
-            isUser: role === 'user'
+            isUser: role === 'user',
+            isReasoning: false
         };
     }
 
@@ -15,7 +16,12 @@ export class MessageFactory {
         return this.createMessage('user', content);
     }
 
-    static createAssistantMessage(content: MessageContent[]): Message {
-        return this.createMessage('assistant', content);
+    static createAssistantMessage(content: MessageContent[], reasoning_content?: MessageContent): Message {
+        const message = this.createMessage('assistant', content);
+        if (reasoning_content) {
+            message.isReasoning = true;
+            message.reasoning_content = reasoning_content;
+        }
+        return message;
     }
 }

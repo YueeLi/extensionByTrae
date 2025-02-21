@@ -118,7 +118,7 @@ export class AIModelManager {
 
 
 
-    static async callAzureAI(info: LLMRequestMessage[], port?: chrome.runtime.Port): Promise<string> {
+    static async callAzureAI(info: LLMRequestMessage[], port?: chrome.runtime.Port): Promise<{ response_content: string; reasoning_content?: string }> {
         console.log('request LLM with ChatRequest:', info)
 
         if (!info?.length) {
@@ -171,6 +171,7 @@ export class AIModelManager {
                 const reader = response.body!.getReader();
                 const decoder = new TextDecoder();
                 let fullResponse = '';
+                let fullReasoning = '';
 
                 try {
                     while (true) {
@@ -192,6 +193,7 @@ export class AIModelManager {
                                         port.postMessage({ type: 'CHUNK', data: content });
                                     }
                                     if (reasoning_content) {
+                                        fullReasoning += reasoning_content;
                                         port.postMessage({ type: 'REASONING', data: reasoning_content });
                                     }
                                     if (done) break;
@@ -206,7 +208,7 @@ export class AIModelManager {
                     port.postMessage({ type: 'DONE' });
                 }
 
-                return fullResponse;
+                return { response_content: fullResponse, reasoning_content: fullReasoning || undefined };
             }
 
             // 非流式响应处理
@@ -218,7 +220,7 @@ export class AIModelManager {
             if (!choice.message || typeof choice.message.content !== 'string') {
                 throw new Error('API响应内容格式无效');
             }
-            return choice.message.content;
+            return { response_content: choice.message.content };
         } catch (error) {
             console.error('API调用出错:', error);
             if (port) {

@@ -344,7 +344,12 @@ const ChatPanel: React.FC = () => {
                     }],
                     isUser: false,
                     timestamp: Date.now(),
-                    role: 'assistant'
+                    role: 'assistant',
+                    reasoning_content: {
+                        type: 'text',
+                        text: ''
+                    },
+                    isReasoning: false
                 };
 
                 setMessages(prev => [...prev, tempAiMessage]);
@@ -352,26 +357,30 @@ const ChatPanel: React.FC = () => {
                 // 建立流式连接
                 const port = chrome.runtime.connect({ name: 'STREAM_LLM' });
                 let streamContent = '';
+                let streamReason = '';
 
                 // 监听流式响应
                 port.onMessage.addListener((msg) => {
-                    if (msg.type === 'CHUNK') {
-                        streamContent += msg.data;
+                    // 先有推理信息
+                    if (msg.type === 'REASONING') {
+                        streamReason += msg.data;
                         // 使用requestAnimationFrame优化渲染性能
                         requestAnimationFrame(() => {
                             setMessages(prev => prev.map(message =>
                                 message.id === tempAiMessage.id
                                     ? {
                                         ...message,
-                                        content: [{
+                                        isReasoning: true,
+                                        reasoning_content: {
                                             type: 'text',
-                                            text: streamContent
-                                        }]
+                                            text: streamReason
+                                        }
                                     }
                                     : message
                             ));
                         });
-                    } else if (msg.type === 'REASONING') {
+                    } else if (msg.type === 'CHUNK') {
+                        // 推理完成后, 开始是正式答案信息
                         streamContent += msg.data;
                         // 使用requestAnimationFrame优化渲染性能
                         requestAnimationFrame(() => {
@@ -605,6 +614,17 @@ const ChatPanel: React.FC = () => {
                                     } : {}
                                 }}
                             >
+                                {message.isReasoning && message.reasoning_content && (
+                                    <Box sx={{ mb: 2, p: 2, bgcolor: 'rgba(0, 0, 0, 0.04)', borderRadius: '8px', borderLeft: '4px solid #1A7FE9' }}>
+                                        <Typography variant="body2" sx={{ color: '#666666', fontStyle: 'italic' }}>
+                                            推理过程：
+                                        </Typography>
+                                        <MarkdownRenderer
+                                            content={message.reasoning_content.text || ''}
+                                            textColor={'#333333'}
+                                        />
+                                    </Box>
+                                )}
                                 {message.content.map((item, index) => (
                                     <Box key={index}>
                                         {item.type === 'text' && (

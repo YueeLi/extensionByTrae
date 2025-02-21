@@ -48,14 +48,14 @@ class MessageCenter {
         }
         reqMessages.push(newMsg);
         console.log('chat request to LLM:', reqMessages);
-        const response = await AIModelManager.callAzureAI(reqMessages, port);
-        const assistantMessage = MessageFactory.createAssistantMessage([{
-            type: 'text',
-            text: response
-        }]);
+        const { response_content: resContent, reasoning_content: resReason } = await AIModelManager.callAzureAI(reqMessages, port);
+        const assistantMessage = MessageFactory.createAssistantMessage(
+            [{ type: 'text' as const, text: resContent }],
+            resReason ? { type: 'text' as const, text: resReason } : undefined
+        );
         await SessionManager.updateSession(currentSessionID, userMessage);
         await SessionManager.updateSession(currentSessionID, assistantMessage);
-        return response;
+        return resContent;
     }
 
     // 处理content相关请求, 如翻译、分析、解释、总结等, 并返回处理结果.不涉及历史消息及session操作.
@@ -72,8 +72,8 @@ class MessageCenter {
         };
 
         const reqMessages: LLMRequestMessage[] = newMsg ? [newMsg] : [];
-        const response = await AIModelManager.callAzureAI(reqMessages, port);
-        return response;
+        const { response_content: resContent } = await AIModelManager.callAzureAI(reqMessages, port);
+        return resContent;
     }
 }
 
