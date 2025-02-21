@@ -37,7 +37,7 @@ export class AIModelManager {
             })
         },
         'deepseek': {
-            buildUrl: (model) => `${model.endpoint}/v1/chat/completions`,
+            buildUrl: (model) => `${model.endpoint}/api/v3/chat/completions`,
             buildHeaders: (model) => ({
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${model.apiKey}`,
@@ -46,7 +46,7 @@ export class AIModelManager {
             buildBody: (messages, model) => ({
                 messages,
                 model: model.deploymentName,
-                max_tokens: 4096,
+                max_tokens: 65536,
                 stream: model.stream || false,
                 ...model.requestConfig?.bodyTemplate
             })
