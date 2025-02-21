@@ -66,8 +66,10 @@ const ResultPanel: React.FC<ResultPanelProps> = ({ result, position, onClose }) 
         <Box
             sx={{
                 position: 'fixed',
-                left: position.x,
-                top: showBelow ? position.y + 45 : position.y - panelHeight - 45,
+                left: Math.min(Math.max(0, position.x), window.innerWidth - 600),
+                top: showBelow ? 
+                    Math.min(position.y + 45, window.innerHeight - panelHeight) : 
+                    Math.max(45, position.y - panelHeight - 45),
                 maxWidth: '600px',
                 width: 'auto',
                 minWidth: '320px',

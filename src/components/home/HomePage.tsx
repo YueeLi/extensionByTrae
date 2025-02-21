@@ -113,23 +113,32 @@ const HomePage: React.FC = () => {
                                     px: 1.2,
                                     whiteSpace: 'nowrap',
                                     overflow: 'hidden',
-                                    transition: 'all 0.3s ease',
+                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    border: '1px solid transparent',
                                     '&.Mui-selected': {
-                                        background: 'linear-gradient(135deg, rgba(26, 127, 233, 0.08) 0%, rgba(26, 127, 233, 0.12) 100%)',
-                                        boxShadow: '0 2px 8px rgba(26, 127, 233, 0.08)',
+                                        background: 'linear-gradient(135deg, rgba(26, 127, 233, 0.06) 0%, rgba(26, 127, 233, 0.1) 100%)',
+                                        boxShadow: '0 2px 8px rgba(26, 127, 233, 0.06)',
+                                        borderColor: 'rgba(26, 127, 233, 0.1)',
                                         '&:hover': {
-                                            background: 'linear-gradient(135deg, rgba(26, 127, 233, 0.12) 0%, rgba(26, 127, 233, 0.16) 100%)',
-                                            boxShadow: '0 4px 12px rgba(26, 127, 233, 0.12)'
+                                            background: 'linear-gradient(135deg, rgba(26, 127, 233, 0.08) 0%, rgba(26, 127, 233, 0.12) 100%)',
+                                            boxShadow: '0 4px 12px rgba(26, 127, 233, 0.08)',
+                                            borderColor: 'rgba(26, 127, 233, 0.15)'
                                         },
                                         '& .MuiListItemIcon-root': {
                                             color: '#1A7FE9',
-                                            background: 'linear-gradient(135deg, rgba(26, 127, 233, 0.08) 0%, rgba(26, 127, 233, 0.12) 100%)',
-                                            transform: 'scale(1.05)',
-                                            boxShadow: '0 2px 8px rgba(26, 127, 233, 0.12)'
+                                            background: 'linear-gradient(135deg, rgba(26, 127, 233, 0.1) 0%, rgba(26, 127, 233, 0.15) 100%)',
+                                            transform: 'scale(1.05) translateY(-1px)',
+                                            boxShadow: '0 3px 6px rgba(26, 127, 233, 0.15)'
                                         }
                                     },
                                     '&:hover': {
-                                        background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.02) 0%, rgba(0, 0, 0, 0.04) 100%)',
+                                        background: 'linear-gradient(135deg, rgba(26, 127, 233, 0.02) 0%, rgba(26, 127, 233, 0.04) 100%)',
+                                        borderColor: 'rgba(26, 127, 233, 0.08)',
+                                        transform: 'translateY(-1px)',
+                                        '& .MuiListItemIcon-root': {
+                                            transform: 'scale(1.05)',
+                                            boxShadow: '0 2px 4px rgba(26, 127, 233, 0.1)'
+                                        },
                                         '& .tooltip': {
                                             visibility: 'visible',
                                             opacity: 1,
@@ -147,11 +156,13 @@ const HomePage: React.FC = () => {
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    background: 'rgba(0, 0, 0, 0.04)',
+                                    background: 'linear-gradient(135deg, rgba(0, 0, 0, 0.02) 0%, rgba(0, 0, 0, 0.04) 100%)',
                                     mr: 1.5,
-                                    transition: 'all 0.3s ease',
+                                    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                                    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
                                     '& .MuiSvgIcon-root': {
-                                        fontSize: 18
+                                        fontSize: 18,
+                                        transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)'
                                     }
                                 }}>
                                     {item.icon}
